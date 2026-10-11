@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "categories": [
+    {"id": "fruta-verdura", "name": "Fruta y verdura", "types": [
+      {"id": "fruta/manzana", "name": "Manzana", "unit": "kg", "syn": ["manzana", "poma"]},
+      {"id": "fruta/platano", "name": "Plátano", "unit": "kg", "syn": ["platano", "banana", "platan"]},
+      {"id": "fruta/naranja", "name": "Naranja", "unit": "kg", "syn": ["naranja", "taronja"]},
+      {"id": "fruta/mandarina", "name": "Mandarina", "unit": "kg", "syn": ["mandarina", "clementina"]},
+      {"id": "fruta/limon", "name": "Limón", "unit": "kg", "syn": ["limon", "llimona"]},
+      {"id": "fruta/pera", "name": "Pera", "unit": "kg", "syn": ["pera"]},
+      {"id": "fruta/uva", "name": "Uva", "unit": "kg", "syn": ["uva", "raim"]},
+      {"id": "fruta/fresa", "name": "Fresa", "unit": "g", "syn": ["fresa", "fresones", "freson", "maduixa"]},
+      {"id": "fruta/kiwi", "name": "Kiwi", "unit": "kg", "syn": ["kiwi"]},
+      {"id": "fruta/aguacate", "name": "Aguacate", "unit": "ud", "syn": ["aguacate", "alvocat"]},
+      {"id": "fruta/melon", "name": "Melón", "unit": "kg", "syn": ["melon", "meló"]},
+      {"id": "fruta/sandia", "name": "Sandía", "unit": "kg", "syn": ["sandia", "sindria"]},
+      {"id": "verdura/tomate", "name": "Tomate", "unit": "kg", "syn": ["tomate", "tomatiga", "tomaquet"]},
+      {"id": "verdura/patata", "name": "Patata", "unit": "kg", "syn": ["patata", "papa", "patates"]},
+      {"id": "verdura/cebolla", "name": "Cebolla", "unit": "kg", "syn": ["cebolla", "ceba"]},
+      {"id": "verdura/ajo", "name": "Ajo", "unit": "ud", "syn": ["ajo", "all", "ajos"]},
+      {"id": "verdura/zanahoria", "name": "Zanahoria", "unit": "kg", "syn": ["zanahoria", "pastanaga"]},
+      {"id": "verdura/lechuga", "name": "Lechuga", "unit": "ud", "syn": ["lechuga", "enciam", "ensalada"]},
+      {"id": "verdura/pimiento", "name": "Pimiento", "unit": "kg", "syn": ["pimiento", "pebre"]},
+      {"id": "verdura/calabacin", "name": "Calabacín", "unit": "kg", "syn": ["calabacin", "carabasso"]},
+      {"id": "verdura/berenjena", "name": "Berenjena", "unit": "kg", "syn": ["berenjena", "albergini"]},
+      {"id": "verdura/pepino", "name": "Pepino", "unit": "kg", "syn": ["pepino", "cogombre"]},
+      {"id": "verdura/champinon", "name": "Champiñón", "unit": "g", "syn": ["champinon", "champinones", "xampinyo"]},
+      {"id": "verdura/espinaca", "name": "Espinacas", "unit": "g", "syn": ["espinaca", "espinacas", "espinacs"]},
+      {"id": "verdura/brocoli", "name": "Brócoli", "unit": "ud", "syn": ["brocoli", "brecol"]}
+    ]},
+    {"id": "panaderia", "name": "Panadería y bollería", "types": [
+      {"id": "pan/barra", "name": "Pan de barra", "unit": "ud", "syn": ["pan", "barra", "baguette", "pa"], "abbr": ["PAN BARRA", "BARRA PAN", "BAGUETTE"]},
+      {"id": "pan/molde", "name": "Pan de molde", "unit": "ud", "syn": ["pan de molde", "pan bimbo", "bimbo", "pa de motlle"], "abbr": ["PAN MOLDE"]},
+      {"id": "pan/tostado", "name": "Pan tostado", "unit": "ud", "syn": ["pan tostado", "biscotes", "tostadas"]},
+      {"id": "bolleria/croissant", "name": "Croissant", "unit": "ud", "syn": ["croissant", "cruasan", "croissants"], "abbr": ["CROISSANT", "CRUASAN"]},
+      {"id": "bolleria/magdalena", "name": "Magdalenas", "unit": "pack", "syn": ["magdalena", "magdalenas"]},
+      {"id": "bolleria/ensaimada", "name": "Ensaimada", "unit": "ud", "syn": ["ensaimada", "ensaimadas"]}
+    ]},
+    {"id": "lacteos", "name": "Lácteos y huevos", "types": [
+      {"id": "leche", "name": "Leche", "unit": "l", "syn": ["leche", "llet"], "abbr": ["LECHE"]},
+      {"id": "leche/entera", "name": "Leche entera", "unit": "l", "syn": ["leche entera", "llet sencera"], "abbr": ["LECHE ENTERA", "L.ENTERA", "LECHE ENT"]},
+      {"id": "leche/semidesnatada", "name": "Leche semidesnatada", "unit": "l", "syn": ["leche semi", "leche semidesnatada", "semidesnatada", "llet semi"], "abbr": ["LECHE SEMI", "L.SEMI", "SEMIDESNATADA"]},
+      {"id": "leche/desnatada", "name": "Leche desnatada", "unit": "l", "syn": ["leche desnatada", "desnatada"], "abbr": ["LECHE DESN", "DESNATADA"]},
+      {"id": "leche/sin-lactosa", "name": "Leche sin lactosa", "unit": "l", "syn": ["leche sin lactosa"], "abbr": ["SIN LACTOSA", "S/LACTOSA"]},
+      {"id": "huevo", "name": "Huevos", "unit": "ud", "syn": ["huevo", "huevos", "ou", "ous"], "abbr": ["HUEVOS", "HUEVO"]},
+      {"id": "yogur", "name": "Yogur", "unit": "ud", "syn": ["yogur", "yogures", "iogurt"], "abbr": ["YOGUR"]},
+      {"id": "yogur/griego", "name": "Yogur griego", "unit": "ud", "syn": ["yogur griego", "griego"], "abbr": ["YOGUR GRIEGO", "GRIEGO"]},
+      {"id": "mantequilla", "name": "Mantequilla", "unit": "g", "syn": ["mantequilla", "mantega"], "abbr": ["MANTEQUILLA"]},
+      {"id": "nata", "name": "Nata", "unit": "ml", "syn": ["nata", "nata para cocinar"], "abbr": ["NATA"]},
+      {"id": "queso/fresco", "name": "Queso fresco", "unit": "g", "syn": ["queso fresco", "burgos"], "abbr": ["Q.FRESCO", "QUESO FRESCO"]},
+      {"id": "queso/rallado", "name": "Queso rallado", "unit": "g", "syn": ["queso rallado"], "abbr": ["Q.RALLADO", "QUESO RALLADO"]},
+      {"id": "queso/curado", "name": "Queso curado", "unit": "g", "syn": ["queso", "queso curado", "formatge", "queso semicurado"], "abbr": ["QUESO", "Q.CURADO"]}
+    ]},
+    {"id": "carne", "name": "Carne", "types": [
+      {"id": "carne/pollo-pechuga", "name": "Pechuga de pollo", "unit": "kg", "syn": ["pechuga", "pechuga de pollo", "pollo", "pollastre"], "abbr": ["PECHUGA", "FILETE PECHUGA"]},
+      {"id": "carne/pollo-muslo", "name": "Muslos de pollo", "unit": "kg", "syn": ["muslo de pollo", "muslos", "contramuslo"], "abbr": ["MUSLO", "CONTRAMUSLO"]},
+      {"id": "carne/picada", "name": "Carne picada", "unit": "g", "syn": ["carne picada", "picada"], "abbr": ["PICADA", "CARNE PICADA"]},
+      {"id": "carne/cerdo-lomo", "name": "Lomo de cerdo", "unit": "kg", "syn": ["lomo", "lomo de cerdo", "llom"], "abbr": ["LOMO"]},
+      {"id": "carne/ternera-filete", "name": "Filete de ternera", "unit": "kg", "syn": ["ternera", "filete de ternera", "vedella"], "abbr": ["TERNERA", "FILETE TERNERA"]},
+      {"id": "carne/hamburguesa", "name": "Hamburguesas", "unit": "pack", "syn": ["hamburguesa", "hamburguesas", "burger"], "abbr": ["BURGER", "HAMBURGUESA"]},
+      {"id": "carne/salchicha", "name": "Salchichas", "unit": "pack", "syn": ["salchicha", "salchichas", "frankfurt"], "abbr": ["SALCHICHA", "FRANKFURT"]}
+    ]},
+    {"id": "pescado", "name": "Pescado", "types": [
+      {"id": "pescado/salmon", "name": "Salmón", "unit": "kg", "syn": ["salmon"], "abbr": ["SALMON"]},
+      {"id": "pescado/merluza", "name": "Merluza", "unit": "kg", "syn": ["merluza", "lluc"], "abbr": ["MERLUZA"]},
+      {"id": "pescado/atun-lata", "name": "Atún en lata", "unit": "pack", "syn": ["atun", "atun en lata", "tonyina"], "abbr": ["ATUN"]},
+      {"id": "pescado/gamba", "name": "Gambas", "unit": "g", "syn": ["gamba", "gambas", "langostino", "langostinos"], "abbr": ["GAMBA", "LANGOSTINO"]}
+    ]},
+    {"id": "charcuteria", "name": "Charcutería", "types": [
+      {"id": "charcuteria/jamon-cocido", "name": "Jamón cocido", "unit": "g", "syn": ["jamon cocido", "jamon york", "york"], "abbr": ["JAMON COCIDO", "J.COCIDO", "JAMON YORK"]},
+      {"id": "charcuteria/jamon-serrano", "name": "Jamón serrano", "unit": "g", "syn": ["jamon serrano", "serrano", "jamon"], "abbr": ["JAMON SERRANO", "SERRANO"]},
+      {"id": "charcuteria/pavo", "name": "Pechuga de pavo", "unit": "g", "syn": ["pavo", "pechuga de pavo"], "abbr": ["PAVO"]},
+      {"id": "charcuteria/chorizo", "name": "Chorizo", "unit": "g", "syn": ["chorizo"], "abbr": ["CHORIZO"]},
+      {"id": "charcuteria/sobrasada", "name": "Sobrasada", "unit": "g", "syn": ["sobrasada", "sobrassada"], "abbr": ["SOBRASADA"]}
+    ]},
+    {"id": "despensa", "name": "Despensa", "types": [
+      {"id": "despensa/arroz", "name": "Arroz", "unit": "kg", "syn": ["arroz", "arros"], "abbr": ["ARROZ"]},
+      {"id": "despensa/pasta-macarron", "name": "Macarrones", "unit": "g", "syn": ["macarrones", "macarron", "pasta"], "abbr": ["MACARRON", "MACARRONES"]},
+      {"id": "despensa/pasta-espagueti", "name": "Espaguetis", "unit": "g", "syn": ["espaguetis", "spaghetti", "espagueti"], "abbr": ["SPAGHETTI", "ESPAGUETI"]},
+      {"id": "despensa/garbanzo", "name": "Garbanzos", "unit": "g", "syn": ["garbanzo", "garbanzos", "cigrons"], "abbr": ["GARBANZO"]},
+      {"id": "despensa/lenteja", "name": "Lentejas", "unit": "g", "syn": ["lenteja", "lentejas", "llenties"], "abbr": ["LENTEJA"]},
+      {"id": "despensa/aceite-oliva", "name": "Aceite de oliva", "unit": "l", "syn": ["aceite", "aceite de oliva", "oli", "aove"], "abbr": ["ACEITE OLIVA", "A.OLIVA", "ACEITE"]},
+      {"id": "despensa/aceite-girasol", "name": "Aceite de girasol", "unit": "l", "syn": ["aceite de girasol", "girasol"], "abbr": ["ACEITE GIRASOL", "A.GIRASOL"]},
+      {"id": "despensa/tomate-frito", "name": "Tomate frito", "unit": "g", "syn": ["tomate frito"], "abbr": ["TOMATE FRITO", "T.FRITO"]},
+      {"id": "despensa/harina", "name": "Harina", "unit": "kg", "syn": ["harina", "farina"], "abbr": ["HARINA"]},
+      {"id": "despensa/azucar", "name": "Azúcar", "unit": "kg", "syn": ["azucar", "sucre"], "abbr": ["AZUCAR"]},
+      {"id": "despensa/sal", "name": "Sal", "unit": "kg", "syn": ["sal"], "abbr": ["SAL"]},
+      {"id": "despensa/vinagre", "name": "Vinagre", "unit": "l", "syn": ["vinagre"], "abbr": ["VINAGRE"]},
+      {"id": "despensa/mayonesa", "name": "Mayonesa", "unit": "ml", "syn": ["mayonesa", "maionesa"], "abbr": ["MAYONESA"]}
+    ]},
+    {"id": "desayuno", "name": "Desayuno", "types": [
+      {"id": "desayuno/cafe-molido", "name": "Café molido", "unit": "g", "syn": ["cafe", "cafe molido"], "abbr": ["CAFE MOLIDO", "CAFE"]},
+      {"id": "desayuno/cafe-capsula", "name": "Café en cápsulas", "unit": "pack", "syn": ["capsulas", "capsulas de cafe", "cafe en capsulas"], "abbr": ["CAPSULAS"]},
+      {"id": "desayuno/cacao", "name": "Cacao soluble", "unit": "g", "syn": ["cacao", "colacao", "cola cao", "nesquik"], "abbr": ["CACAO"]},
+      {"id": "desayuno/cereales", "name": "Cereales", "unit": "g", "syn": ["cereales", "cornflakes", "muesli"], "abbr": ["CEREALES", "CORN FLAKES"]},
+      {"id": "desayuno/galletas", "name": "Galletas", "unit": "g", "syn": ["galleta", "galletas", "maria", "galetes"], "abbr": ["GALLETA", "GALLETAS"]},
+      {"id": "desayuno/mermelada", "name": "Mermelada", "unit": "g", "syn": ["mermelada", "confitura"], "abbr": ["MERMELADA"]},
+      {"id": "desayuno/te", "name": "Té e infusiones", "unit": "pack", "syn": ["te", "infusion", "manzanilla"], "abbr": ["TE ", "INFUSION"]}
+    ]},
+    {"id": "bebidas", "name": "Bebidas", "types": [
+      {"id": "bebida/agua", "name": "Agua", "unit": "l", "syn": ["agua", "aigua"], "abbr": ["AGUA"]},
+      {"id": "bebida/refresco-cola", "name": "Refresco de cola", "unit": "l", "syn": ["coca cola", "cocacola", "cola", "refresco"], "abbr": ["COLA", "REFRESCO"]},
+      {"id": "bebida/zumo-naranja", "name": "Zumo de naranja", "unit": "l", "syn": ["zumo", "zumo de naranja", "suc"], "abbr": ["ZUMO"]},
+      {"id": "bebida/cerveza", "name": "Cerveza", "unit": "l", "syn": ["cerveza", "cervesa", "birra"], "abbr": ["CERVEZA"]},
+      {"id": "bebida/vino-tinto", "name": "Vino tinto", "unit": "l", "syn": ["vino", "vino tinto", "vi negre"], "abbr": ["VINO", "V.TINTO"]},
+      {"id": "bebida/bebida-vegetal", "name": "Bebida vegetal", "unit": "l", "syn": ["bebida de avena", "leche de avena", "bebida vegetal", "soja"], "abbr": ["BEBIDA AVENA", "BEB.AVENA", "SOJA"]}
+    ]},
+    {"id": "congelados", "name": "Congelados", "types": [
+      {"id": "congelado/pizza", "name": "Pizza", "unit": "ud", "syn": ["pizza", "pizzas"], "abbr": ["PIZZA"]},
+      {"id": "congelado/helado", "name": "Helado", "unit": "ml", "syn": ["helado", "gelat"], "abbr": ["HELADO"]},
+      {"id": "congelado/verdura", "name": "Verdura congelada", "unit": "g", "syn": ["guisantes", "verdura congelada", "menestra"], "abbr": ["GUISANTE", "MENESTRA"]}
+    ]},
+    {"id": "limpieza", "name": "Limpieza y hogar", "types": [
+      {"id": "limpieza/papel-higienico", "name": "Papel higiénico", "unit": "pack", "syn": ["papel higienico", "papel de vater"], "abbr": ["P.HIGIENICO", "PAPEL HIG"]},
+      {"id": "limpieza/papel-cocina", "name": "Papel de cocina", "unit": "pack", "syn": ["papel de cocina", "rollo de cocina"], "abbr": ["PAPEL COCINA", "P.COCINA"]},
+      {"id": "limpieza/detergente", "name": "Detergente", "unit": "l", "syn": ["detergente", "detergent"], "abbr": ["DETERGENTE"]},
+      {"id": "limpieza/lavavajillas", "name": "Lavavajillas", "unit": "ml", "syn": ["lavavajillas", "fairy"], "abbr": ["LAVAVAJILLAS"]},
+      {"id": "limpieza/lejia", "name": "Lejía", "unit": "l", "syn": ["lejia", "lleixiu"], "abbr": ["LEJIA"]},
+      {"id": "limpieza/bolsas-basura", "name": "Bolsas de basura", "unit": "pack", "syn": ["bolsas de basura", "bolsas basura"], "abbr": ["BOLSA BASURA"]}
+    ]},
+    {"id": "higiene", "name": "Higiene", "types": [
+      {"id": "higiene/gel", "name": "Gel de ducha", "unit": "ml", "syn": ["gel", "gel de ducha"], "abbr": ["GEL"]},
+      {"id": "higiene/champu", "name": "Champú", "unit": "ml", "syn": ["champu", "xampu"], "abbr": ["CHAMPU"]},
+      {"id": "higiene/pasta-dientes", "name": "Pasta de dientes", "unit": "ml", "syn": ["pasta de dientes", "dentifrico"], "abbr": ["DENTIFRICO", "PASTA DENT"]},
+      {"id": "higiene/desodorante", "name": "Desodorante", "unit": "ud", "syn": ["desodorante"], "abbr": ["DESODORANTE"]}
+    ]}
+  ]
+}

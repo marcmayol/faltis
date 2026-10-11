@@ -1,0 +1,171 @@
+package com.marcmayol.faltis.ui
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.marcmayol.faltis.BuildConfig
+import com.marcmayol.faltis.core.Chains
+import com.marcmayol.faltis.ui.theme.Faltis
+import com.marcmayol.faltis.ui.theme.Type
+import kotlinx.coroutines.launch
+import kotlin.math.roundToLong
+
+@Composable
+fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
+    val stores by vm.stores.collectAsState()
+    val settings by vm.settings.collectAsState()
+    val sampleCount by vm.sampleCount.collectAsState()
+    var addChain by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf<String?>(null) }
+    var budgetDialog by remember { mutableStateOf(false) }
+    var wipe by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            val json = vm.repo.exportJson()
+            context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+            vm.say("Datos exportados")
+        }
+    }
+
+    HaloBackground(color = Faltis.Blue, second = Faltis.Brand) {
+        LazyColumn(
+            Modifier.fillMaxSize().statusBarsPadding(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 18.dp, bottom = contentPadding.calculateBottomPadding() + 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            item { Text("Ajustes", style = Type.screenTitle, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)) }
+            item { SectionLabel("Mis tiendas", Modifier.padding(start = 4.dp)) }
+            items(stores, key = { it.id }) { s ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ChainChip(s.chainId, 32.dp)
+                    Text(s.name, style = Type.row.copy(fontSize = 15.sp), modifier = Modifier.weight(1f))
+                    IconButton({ vm.moveStore(s, -1) }) { Icon(Icons.Filled.KeyboardArrowUp, "Subir") }
+                    IconButton({ vm.moveStore(s, 1) }) { Icon(Icons.Filled.KeyboardArrowDown, "Bajar") }
+                    IconButton({ vm.hideStore(s) }) { Icon(Icons.Filled.Close, "Quitar de mis tiendas") }
+                }
+            }
+            item {
+                androidx.compose.foundation.layout.Box {
+                    SecondaryButton("Añadir tienda", { addChain = true }, Modifier.fillMaxWidth())
+                    DropdownMenu(addChain, { addChain = false }) {
+                        Chains.all.forEach { c -> DropdownMenuItem(text = { Text(c.name) }, leadingIcon = { ChainChip(c.id, 26.dp) }, onClick = { addChain = false; naming = c.id }) }
+                    }
+                }
+            }
+            item { SectionLabel("Compra", Modifier.padding(start = 4.dp, top = 10.dp)) }
+            item {
+                SettingRow("Incluir promos y precios de socio", "Usa el precio con descuento si es de los últimos 7 días.") {
+                    Switch(settings?.includePromos == true, vm::setPromos, colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
+                }
+            }
+            item {
+                SettingRow("Presupuesto mensual", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it) } ?: "Sin presupuesto", onClick = { budgetDialog = true }) {}
+            }
+            item { SectionLabel("Apariencia", Modifier.padding(start = 4.dp, top = 10.dp)) }
+            item {
+                val mode = settings?.themeMode ?: com.marcmayol.faltis.ui.theme.ThemeMode.SYSTEM
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Tema", style = Type.row.copy(fontSize = 15.sp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            com.marcmayol.faltis.ui.theme.ThemeMode.SYSTEM to "Sistema",
+                            com.marcmayol.faltis.ui.theme.ThemeMode.LIGHT to "Claro",
+                            com.marcmayol.faltis.ui.theme.ThemeMode.DARK to "Oscuro",
+                        ).forEach { (m, label) -> SelectPill(label, m == mode) { vm.setTheme(m) } }
+                    }
+                }
+            }
+            item { SectionLabel("Datos", Modifier.padding(start = 4.dp, top = 10.dp)) }
+            item { SettingRow("Exportar mis datos", "Un archivo JSON con tiendas, listas, precios y compras.", onClick = { export.launch("faltis.json") }) {} }
+            if (sampleCount > 0) item { SettingRow("Borrar datos de ejemplo", "$sampleCount productos ficticios y sus precios.", onClick = { vm.deleteSample() }) {} }
+            else item { SettingRow("Cargar datos de ejemplo", "Para probar la app con precios ficticios.", onClick = { vm.loadSample() }) {} }
+            item { SettingRow("Borrar todo", "Listas, tiendas, precios y compras. No se puede deshacer.", onClick = { wipe = true }) {} }
+            item { SectionLabel("Acerca de", Modifier.padding(start = 4.dp, top = 10.dp)) }
+            if (!BuildConfig.DEBUG) item {
+                UpdatesSection((context.applicationContext as com.marcmayol.faltis.FaltisApp).actualizador)
+            }
+            item {
+                SettingRow(
+                    if (BuildConfig.DEBUG) "Faltis ${BuildConfig.VERSION_NAME}" else "Privacidad y créditos",
+                    "Nombre provisional. Tus listas, tickets y precios no salen del móvil; internet solo se usa para buscar actualizaciones. " +
+                        "Sin analítica. Tipografías Archivo e IBM Plex Mono (SIL OFL). Partes de código abierto: ver NOTICE.",
+                ) {}
+            }
+        }
+    }
+    naming?.let { chain ->
+        TextDialog("¿Qué ${Chains.byId(chain).name}?", "Pueblo o barrio", "", { naming = null }) { vm.addStore(chain, "${Chains.byId(chain).name} ${it.trim()}") }
+    }
+    if (budgetDialog) TextDialog("Presupuesto mensual", "Euros (0 para quitarlo)", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it, false) } ?: "", { budgetDialog = false }) { v ->
+        vm.setBudget(((v.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0) * 100).roundToLong())
+    }
+    if (wipe) AlertDialog(
+        onDismissRequest = { wipe = false }, containerColor = Faltis.Surface,
+        title = { Text("¿Borrar todo?", style = Type.title) },
+        text = { Text("Se borrarán tus listas, tiendas, precios y compras. No se puede deshacer.", style = Type.body) },
+        confirmButton = { TextButton({ wipe = false; vm.deleteAll() }) { Text("Borrar todo", color = Faltis.Warn) } },
+        dismissButton = { TextButton({ wipe = false }) { Text("Cancelar") } },
+    )
+}
+
+@Composable
+private fun SettingRow(title: String, subtitle: String?, onClick: (() -> Unit)? = null, trailing: @Composable () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).heightIn(min = 60.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Type.row.copy(fontSize = 15.sp))
+            if (subtitle != null) Text(subtitle, style = Type.secondary.copy(fontSize = 13.sp))
+        }
+        trailing()
+    }
+}

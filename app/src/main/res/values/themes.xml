@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fondo de arranque claro; el oscuro esta en values-night. Compose pone el definitivo segun Ajustes. -->
+    <style name="Theme.Faltis" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+    <color name="ground">#F4F5F9</color>
+</resources>

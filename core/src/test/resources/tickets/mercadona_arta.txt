@@ -1,0 +1,18 @@
+MERCADONA, S.A.
+C/ CIUTAT DE MALLORCA 12
+07570 ARTA
+TELEFONO: 971 000 000
+08/10/2026 18:32  OP: 123456
+FACTURA SIMPLIFICADA: 2345-011-123456
+Descripción            P. Unit   Importe
+1 LECHE ENTERA                     0,89
+2 HUEVOS GRANDES L      2,35      4,70
+1 CROISSANT MANTEQ                 0,55
+1 PLATANO
+1,284 kg  1,99 €/kg                2,56
+1 YOGUR GRIEGO 4U                  1,85
+1 PAN RUSTI 1/2                    0,95
+TOTAL (€)                         11,50
+TARJETA BANCARIA                  11,50
+IVA  BASE IMPONIBLE (€)  CUOTA (€)
+4%   10,12   0,40

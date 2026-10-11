@@ -1,0 +1,19 @@
+.gradle/
+build/
+*/build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+*.jks
+*.keystore
+keystore.properties
+*.apk
+
+# Dataset de supermercapy con datos de las cadenas: solo para el test local, no se redistribuye.
+# Se descarga de https://github.com/jtayped/supermercapy/tree/main/tests/fixtures/match
+core/src/test/resources/match/
+__pycache__/
