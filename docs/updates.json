@@ -1,8 +1,8 @@
 {
-  "versionCode": 2,
-  "versionName": "0.2.0",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.2.0/faltis-v0.2.0.apk",
-  "sha256": "5fedbef0557f790060dfc12945889f96646e59a74416c8f68c8709bc91d9196a",
-  "notas": "Primera versión en DracApps. Importa meses de tickets de golpe, avisa de lo que ha subido respecto a la media de tus compras y calcula tu inflación. Comprueba cada línea del ticket y dice por qué dos productos son equivalentes.",
+  "versionCode": 3,
+  "versionName": "0.2.1",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.2.1/faltis-v0.2.1.apk",
+  "sha256": "412f6414ae09193daa8e4433798c9bdab8b3630e94c7c599827587480de23a94",
+  "notas": "La app ahora va dentro de un Scaffold: los márgenes de la barra de estado, la de navegación y la barra inferior se miden en vez de ir a ojo, así que nada queda tapado en móviles con barras más altas.",
   "check_horas": 24
 }
