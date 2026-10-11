@@ -11,9 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -91,7 +89,7 @@ fun SpendingScreen(vm: AppViewModel, onTicket: () -> Unit, onPurchase: (Long) ->
     val inflation = remember(book, month) { book?.let { PriceTrends.personalInflation(it, month) } }
 
     HaloBackground(color = Faltis.Brand, second = Faltis.Blue) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 SquareIconButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Mes anterior", { month = month.minusMonths(1) })
                 Text(
@@ -214,13 +212,13 @@ private fun ChangeCard(title: String, color: androidx.compose.ui.graphics.Color,
 
 // ─── P-12 · Detalle de compra ─────────────────────────────────────────────────
 @Composable
-fun PurchaseDetailScreen(vm: AppViewModel, purchaseId: Long, onBack: () -> Unit) {
+fun PurchaseDetailScreen(vm: AppViewModel, purchaseId: Long, onBack: () -> Unit, contentPadding: PaddingValues) {
     val p by remember(purchaseId) { vm.repo.dao.purchaseFlow(purchaseId) }.collectAsState(initial = null)
     val lines by remember(purchaseId) { vm.repo.dao.lines(purchaseId) }.collectAsState(initial = emptyList())
     val stores by vm.repo.dao.allStores().collectAsState(initial = emptyList())
     val purchase = p
     HaloBackground {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             if (purchase == null) { TopBar("Compra", null, onBack); return@Column }
             val store = stores.firstOrNull { it.id == purchase.storeId }
             TopBar(store?.name ?: Chains.byId(purchase.chainId).name, LocalDate.ofEpochDay(purchase.dateEpochDay).format(DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", es)), onBack)

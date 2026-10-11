@@ -13,10 +13,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,7 +54,7 @@ import com.marcmayol.faltis.ui.theme.Type
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Long) -> Unit) {
+fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Long) -> Unit, contentPadding: PaddingValues) {
     val ui by vm.listUi.collectAsState()
     val stores by vm.stores.collectAsState()
     var storeId by remember { mutableLongStateOf(ui.store?.id ?: stores.firstOrNull()?.id ?: 0L) }
@@ -82,7 +80,7 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
     val cartCents = inCart.sumOf { n -> (vm.priceOf(n.id) as? NeedPriceResult.Priced)?.value?.costCents ?: 0L }
 
     HaloBackground(ground = Faltis.ShopGround, alignTop = false) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp)) {
+        Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 BackButton(onBack)
                 Box(Modifier.weight(1f).padding(start = 10.dp)) {

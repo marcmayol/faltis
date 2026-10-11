@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -96,7 +95,7 @@ fun ListScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     HaloBackground {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             ListHeader(
                 listName = ui.list?.name ?: "Compra",
                 lists = lists.map { it.id to it.name },

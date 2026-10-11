@@ -1,5 +1,6 @@
 package com.marcmayol.faltis.ui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -11,10 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -47,13 +46,13 @@ import com.marcmayol.faltis.ui.theme.Faltis
 import com.marcmayol.faltis.ui.theme.Type
 
 @Composable
-fun OnboardingScreen(vm: AppViewModel) {
+fun OnboardingScreen(vm: AppViewModel, contentPadding: PaddingValues) {
     var step by remember { mutableStateOf(0) }
     val chosen = remember { mutableStateListOf<Pair<String, String>>() }
     var listName by remember { mutableStateOf("Compra") }
 
     HaloBackground(color = Faltis.Brand, second = Faltis.Saving) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
+        Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 20.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 repeat(3) { i ->
                     Box(Modifier.weight(1f).height(5.dp).clip(CircleShape).background(if (i <= step) Faltis.GradientH else androidx.compose.ui.graphics.SolidColor(Faltis.Elevated)))

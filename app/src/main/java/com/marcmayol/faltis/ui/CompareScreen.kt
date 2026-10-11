@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,14 +41,14 @@ import com.marcmayol.faltis.ui.theme.Type
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CompareScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: () -> Unit, onStores: () -> Unit) {
+fun CompareScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: () -> Unit, onStores: () -> Unit, contentPadding: PaddingValues) {
     val ui by vm.listUi.collectAsState()
     val settings by vm.settings.collectAsState()
     var detail by remember { mutableStateOf<StoreBasket?>(null) }
     val count = ui.needs.size
 
     HaloBackground(color = Faltis.Saving, second = Faltis.Blue) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             TopBar("Comparar cesta", "${ui.list?.name ?: "Lista"} · $count artículos", onBack)
             LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item {

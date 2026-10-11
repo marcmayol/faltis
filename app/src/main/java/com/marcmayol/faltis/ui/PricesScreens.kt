@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -95,7 +93,7 @@ fun PricesScreen(vm: AppViewModel, onProduct: (Long) -> Unit, onCompare: () -> U
     }
 
     HaloBackground(color = Faltis.Saving, second = Faltis.Blue) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             if (pickForNeed != null) TopBar("Elegir producto", "Se fijará en la necesidad", onBack)
             else Text("Precios", style = Type.screenTitle, modifier = Modifier.padding(start = 20.dp, top = 18.dp, bottom = 8.dp))
             LazyColumn(
@@ -168,14 +166,14 @@ fun PricesScreen(vm: AppViewModel, onProduct: (Long) -> Unit, onCompare: () -> U
 
 // ─── P-05 · Ficha ─────────────────────────────────────────────────────────────
 @Composable
-fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit) {
+fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, contentPadding: PaddingValues) {
     val book by vm.priceBook.collectAsState()
     val stores by vm.stores.collectAsState()
     val settings by vm.settings.collectAsState()
     val b = book
     val p = b?.productsById?.get(productId)
     HaloBackground(color = Faltis.Saving, second = Faltis.Blue) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 BackButton(onBack)
                 Text(p?.ean?.let { "EAN $it" } ?: "", style = Type.mono.copy(color = Faltis.Ink3), modifier = Modifier.weight(1f).padding(start = 12.dp))

@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -78,7 +76,7 @@ import kotlin.math.roundToLong
 
 // ─── P-08 · Captura ───────────────────────────────────────────────────────────
 @Composable
-fun TicketCaptureScreen(vm: AppViewModel, storeHint: Long?, onBack: () -> Unit, onReview: () -> Unit) {
+fun TicketCaptureScreen(vm: AppViewModel, storeHint: Long?, onBack: () -> Unit, onReview: () -> Unit, contentPadding: PaddingValues) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -134,7 +132,7 @@ fun TicketCaptureScreen(vm: AppViewModel, storeHint: Long?, onBack: () -> Unit, 
     }
 
     HaloBackground(color = Faltis.Blue, second = Faltis.Saving) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             TopBar("Escanear ticket", "Tus tickets son tus precios", onBack)
             Column(
                 Modifier.weight(1f).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -230,7 +228,7 @@ private fun CaptureOption(icon: androidx.compose.ui.graphics.vector.ImageVector,
 // ─── P-09 · Revision ──────────────────────────────────────────────────────────
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit) {
+fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit, contentPadding: PaddingValues) {
     val draft by vm.draft.collectAsState()
     val stores by vm.stores.collectAsState()
     val d = draft ?: return // Sin borrador (guardado o cancelado): no navegar desde aqui, la animacion de salida aun compone.
@@ -242,7 +240,7 @@ fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit)
     val fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     HaloBackground(color = Faltis.Blue, second = Faltis.Saving) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             TopBar("Revisar ticket", "${Chains.byId(d.chainId).name} · ${d.date.format(fmt)}${if (d.parsed.dateUncertain) " (revisa la fecha)" else ""}", { vm.cancelDraft(); onBack() })
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
@@ -426,12 +424,12 @@ private fun LineEditor(vm: AppViewModel, rl: ReviewedLine, chainId: String, onDi
 
 // ─── P-10 · Cuadre ────────────────────────────────────────────────────────────
 @Composable
-fun ReconcileScreen(vm: AppViewModel, onBack: () -> Unit, onSaved: () -> Unit) {
+fun ReconcileScreen(vm: AppViewModel, onBack: () -> Unit, onSaved: () -> Unit, contentPadding: PaddingValues) {
     val draft by vm.draft.collectAsState()
     val d = draft ?: return // Sin borrador (guardado o cancelado): no navegar desde aqui, la animacion de salida aun compone.
     val p = d.proposal ?: return // Sin borrador (guardado o cancelado): no navegar desde aqui, la animacion de salida aun compone.
     HaloBackground(color = Faltis.Saving, second = Faltis.Brand) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().padding(contentPadding)) {
             TopBar("Cuadrar con la lista", "Lo marcado pasa a comprado. Se puede revertir.", onBack)
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 item { SectionLabel("Se marcarán como compradas · ${p.toBuy.size}", color = Faltis.Saving) }

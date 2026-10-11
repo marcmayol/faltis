@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -135,64 +137,71 @@ private fun Root(vm: AppViewModel) {
             }
         }
     }
-    Box(Modifier.fillMaxSize().background(Faltis.Ground)) {
-        val s = settings
-        when {
-            s == null -> Unit
-            !s.onboardingDone -> OnboardingScreen(vm)
-            else -> MainNav(vm)
+    val nav = rememberNavController()
+    val entry by nav.currentBackStackEntryAsState()
+    val route = entry?.destination?.route
+    val s = settings
+    val showBar = s?.onboardingDone == true && tabs.any { it.route == route }
+
+    // Un solo Scaffold para toda la app: sus PaddingValues llevan la barra de estado, la de
+    // navegacion y la barra flotante (medida, no a ojo) a cada pantalla.
+    Scaffold(
+        containerColor = Faltis.Ground,
+        contentColor = Faltis.Ink,
+        // Por encima de la barra para escribir de la lista y de los botones de abajo de cada pantalla.
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = 64.dp)) },
+        bottomBar = { if (showBar) FloatingBar(route) { nav.goTab(it) } },
+    ) { padding ->
+        // Consumido para que imePadding no vuelva a sumar la barra de navegacion al abrir el teclado.
+        Box(Modifier.fillMaxSize().consumeWindowInsets(padding)) {
+            when {
+                s == null -> Unit
+                !s.onboardingDone -> OnboardingScreen(vm, padding)
+                else -> MainNav(vm, nav, route, padding)
+            }
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 150.dp))
     }
 }
 
 @Composable
-private fun MainNav(vm: AppViewModel) {
-    val nav = rememberNavController()
-    val entry by nav.currentBackStackEntryAsState()
-    val route = entry?.destination?.route
-    val showBar = tabs.any { it.route == route }
-    val barPadding = PaddingValues(bottom = if (showBar) 92.dp else 0.dp)
+private fun MainNav(vm: AppViewModel, nav: NavHostController, route: String?, padding: PaddingValues) {
     val shared by vm.sharedTicket.collectAsState()
     val sharedBatch by vm.sharedBatch.collectAsState()
     LaunchedEffect(shared, sharedBatch) { if ((shared != null || sharedBatch != null) && route?.startsWith("ticket") != true) nav.navigate("ticket/0") }
 
-    Box(Modifier.fillMaxSize()) {
-        NavHost(nav, startDestination = "list") {
-            composable("list") {
-                ListScreen(
-                    vm, onCompare = { nav.navigate("compare") }, onShop = { nav.navigate("shop") },
-                    onTicket = { nav.navigate("ticket/0") }, onPickProduct = { nav.navigate("pick/$it") },
-                    onStores = { nav.goTab("settings") }, contentPadding = barPadding,
-                )
-            }
-            composable("prices") { PricesScreen(vm, onProduct = { nav.navigate("product/$it") }, onCompare = { nav.navigate("compare") }, contentPadding = barPadding) }
-            composable("spending") { SpendingScreen(vm, onTicket = { nav.navigate("ticket/0") }, onPurchase = { nav.navigate("purchase/$it") }, contentPadding = barPadding) }
-            composable("settings") { SettingsScreen(vm, barPadding) }
-            composable("compare") { CompareScreen(vm, onBack = { nav.popBackStack() }, onTicket = { nav.navigate("ticket/0") }, onStores = { nav.goTab("settings") }) }
-            composable("shop") { ShopModeScreen(vm, onBack = { nav.popBackStack() }, onTicket = { id -> nav.navigate("ticket/$id") }) }
-            composable("ticket/{store}") { e ->
-                val store = e.arguments?.getString("store")?.toLongOrNull()?.takeIf { it > 0 }
-                TicketCaptureScreen(vm, store, onBack = { nav.popBackStack() }, onReview = { nav.navigate("review") })
-            }
-            composable("review") { TicketReviewScreen(vm, onBack = { nav.popBackStack() }, onNext = { nav.navigate("reconcile") }) }
-            composable("reconcile") {
-                ReconcileScreen(vm, onBack = { nav.popBackStack() }, onSaved = {
-                    // Vuelve a Gastos quitando captura, revision y cuadre de la pila.
-                    if (!nav.popBackStack("spending", inclusive = false)) {
-                        nav.navigate("spending") { popUpTo("list"); launchSingleTop = true }
-                    }
-                })
-            }
-            composable("purchase/{id}") { e -> PurchaseDetailScreen(vm, e.arguments?.getString("id")!!.toLong(), onBack = { nav.popBackStack() }) }
-            composable("product/{id}") { e -> ProductScreen(vm, e.arguments?.getString("id")!!.toLong(), onBack = { nav.popBackStack() }) }
-            composable("pick/{need}") { e ->
-                val need = e.arguments?.getString("need")!!.toLong()
-                PricesScreen(vm, onProduct = {}, onCompare = {}, contentPadding = PaddingValues(0.dp), pickForNeed = need,
-                    onPicked = { nav.popBackStack() }, onBack = { nav.popBackStack() })
-            }
+    NavHost(nav, startDestination = "list") {
+        composable("list") {
+            ListScreen(
+                vm, onCompare = { nav.navigate("compare") }, onShop = { nav.navigate("shop") },
+                onTicket = { nav.navigate("ticket/0") }, onPickProduct = { nav.navigate("pick/$it") },
+                onStores = { nav.goTab("settings") }, contentPadding = padding,
+            )
         }
-        if (showBar) FloatingBar(route) { nav.goTab(it) }
+        composable("prices") { PricesScreen(vm, onProduct = { nav.navigate("product/$it") }, onCompare = { nav.navigate("compare") }, contentPadding = padding) }
+        composable("spending") { SpendingScreen(vm, onTicket = { nav.navigate("ticket/0") }, onPurchase = { nav.navigate("purchase/$it") }, contentPadding = padding) }
+        composable("settings") { SettingsScreen(vm, padding) }
+        composable("compare") { CompareScreen(vm, onBack = { nav.popBackStack() }, onTicket = { nav.navigate("ticket/0") }, onStores = { nav.goTab("settings") }, contentPadding = padding) }
+        composable("shop") { ShopModeScreen(vm, onBack = { nav.popBackStack() }, onTicket = { id -> nav.navigate("ticket/$id") }, contentPadding = padding) }
+        composable("ticket/{store}") { e ->
+            val store = e.arguments?.getString("store")?.toLongOrNull()?.takeIf { it > 0 }
+            TicketCaptureScreen(vm, store, onBack = { nav.popBackStack() }, onReview = { nav.navigate("review") }, contentPadding = padding)
+        }
+        composable("review") { TicketReviewScreen(vm, onBack = { nav.popBackStack() }, onNext = { nav.navigate("reconcile") }, contentPadding = padding) }
+        composable("reconcile") {
+            ReconcileScreen(vm, onBack = { nav.popBackStack() }, onSaved = {
+                // Vuelve a Gastos quitando captura, revision y cuadre de la pila.
+                if (!nav.popBackStack("spending", inclusive = false)) {
+                    nav.navigate("spending") { popUpTo("list"); launchSingleTop = true }
+                }
+            }, contentPadding = padding)
+        }
+        composable("purchase/{id}") { e -> PurchaseDetailScreen(vm, e.arguments?.getString("id")!!.toLong(), onBack = { nav.popBackStack() }, contentPadding = padding) }
+        composable("product/{id}") { e -> ProductScreen(vm, e.arguments?.getString("id")!!.toLong(), onBack = { nav.popBackStack() }, contentPadding = padding) }
+        composable("pick/{need}") { e ->
+            val need = e.arguments?.getString("need")!!.toLong()
+            PricesScreen(vm, onProduct = {}, onCompare = {}, contentPadding = padding, pickForNeed = need,
+                onPicked = { nav.popBackStack() }, onBack = { nav.popBackStack() })
+        }
     }
 }
 
@@ -204,7 +213,7 @@ private fun NavHostController.goTab(route: String) = navigate(route) {
 
 @Composable
 private fun FloatingBar(current: String?, onSelect: (String) -> Unit) {
-    Box(Modifier.fillMaxSize().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 12.dp), contentAlignment = Alignment.BottomCenter) {
+    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 12.dp), contentAlignment = Alignment.BottomCenter) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Faltis.NavBar)
                 .border(1.dp, Faltis.Line, RoundedCornerShape(24.dp)).padding(6.dp),
