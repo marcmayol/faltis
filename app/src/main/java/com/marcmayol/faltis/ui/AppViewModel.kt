@@ -320,6 +320,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun addStore(chain: String) = run { repo.addStore(chain, newStoreName(chain, stores.value.map { it.name })) }
     fun hideStore(s: StoreEntity) = run { repo.hideStore(s) }
+    fun renameStore(s: StoreEntity, name: String) = run {
+        val n = name.trim()
+        if (n.isEmpty() || n == s.name) return@run
+        repo.renameStore(s, n)
+    }
     fun moveStore(s: StoreEntity, delta: Int) = run { repo.moveStore(s, delta) }
     fun deleteSample() = run { repo.deleteSample(); repo.ensureActiveList(); say("Datos de ejemplo borrados") }
     fun loadSample() = run { repo.loadSample(); say("Datos de ejemplo cargados") }

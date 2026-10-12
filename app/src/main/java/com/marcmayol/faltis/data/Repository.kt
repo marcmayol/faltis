@@ -406,6 +406,12 @@ class Repository(private val context: Context) {
     /** Quitar de "mis tiendas": nunca se borra si tiene historial (F-15). */
     suspend fun hideStore(s: StoreEntity) = dao.updateStore(s.copy(isFavorite = false))
 
+    /** Cambia el nombre de la tienda y el de su lista, si la lista aun se llama como ella. */
+    suspend fun renameStore(s: StoreEntity, name: String) {
+        dao.updateStore(s.copy(name = name))
+        dao.listsNow().firstOrNull { it.storeId == s.id && it.name == s.name }?.let { dao.updateList(it.copy(name = name)) }
+    }
+
     suspend fun moveStore(s: StoreEntity, delta: Int) {
         val list = dao.favoriteStoresNow().toMutableList()
         val i = list.indexOfFirst { it.id == s.id }

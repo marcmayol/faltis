@@ -381,8 +381,12 @@ fun PriceColumn(price: NeedPriceResult?) {
     }
 }
 
-fun sealText(p: PricedNeed): String {
-    val src = when (p.obs.source) {
+/** De donde sale un precio, igual en todas las pantallas. "cadena": de otra tienda de la misma cadena. */
+fun sourceLabel(source: PriceSource, chainLevel: Boolean): String = when {
+    source == PriceSource.SAMPLE -> "ejemplo"
+    source == PriceSource.WEB -> "web"
+    chainLevel -> "cadena"
+    else -> when (source) {
         PriceSource.TICKET_PDF -> "pdf"
         PriceSource.TICKET_PHOTO -> "ticket"
         PriceSource.MANUAL -> "manual"
@@ -390,9 +394,9 @@ fun sealText(p: PricedNeed): String {
         PriceSource.WEB -> "web"
         PriceSource.SAMPLE -> "ejemplo"
     }
-    val where = if (p.fromChainLevel && p.obs.source != PriceSource.WEB) "cadena" else src
-    return if (p.obs.source == PriceSource.SAMPLE) "ejemplo · ${ageText(p.ageDays)}" else "$where · ${ageText(p.ageDays)}"
 }
+
+fun sealText(p: PricedNeed): String = "${sourceLabel(p.obs.source, p.fromChainLevel)} · ${ageText(p.ageDays)}"
 
 fun sealStyle(p: PricedNeed): SealStyle = when {
     p.freshness == Freshness.STALE -> SealStyle.STALE

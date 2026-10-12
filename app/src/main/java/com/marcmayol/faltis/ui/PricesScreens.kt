@@ -56,7 +56,7 @@ private fun bestIn(book: PriceBook, p: ProductRef, stores: List<com.marcmayol.fa
     return stores.filter { it.chainId == p.chainId }.mapNotNull { s ->
         book.bestObservation(p.id, s, now, promos)?.let { (o, chainLevel) ->
             val age = PriceBook.ageDays(o.observedAt, now)
-            val src = if (o.source == PriceSource.SAMPLE) "ejemplo" else if (chainLevel) "cadena" else if (o.source == PriceSource.TICKET_PDF) "pdf" else "ticket"
+            val src = sourceLabel(o.source, chainLevel)
             BestPrice(p, s.name, o.priceCents, Packs.unitPrice(o.priceCents.toDouble(), p.netQty, p.netUnit)?.toLong(), "$src · ${ageText(age)}",
                 if (age > PriceBook.FRESH_DAYS) SealStyle.STALE else if (o.source == PriceSource.SAMPLE) SealStyle.NEUTRAL else SealStyle.FRESH)
         }
@@ -204,7 +204,7 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
                                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                         Text(euros(best.first.priceCents), style = Type.price.copy(fontSize = 18.sp))
                                         Seal(
-                                            "${if (best.first.source == PriceSource.SAMPLE) "ejemplo" else if (best.second) "cadena" else "ticket"} · ${ageText(age)}",
+                                            "${sourceLabel(best.first.source, best.second)} · ${ageText(age)}",
                                             if (age > PriceBook.FRESH_DAYS) SealStyle.STALE else if (best.first.source == PriceSource.SAMPLE) SealStyle.NEUTRAL else SealStyle.FRESH,
                                         )
                                     }

@@ -61,6 +61,7 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
     var postalDialog by remember { mutableStateOf(false) }
     var budgetDialog by remember { mutableStateOf(false) }
     var wipe by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<com.marcmayol.faltis.data.StoreEntity?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -80,8 +81,10 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
             item { Text("Ajustes", style = Type.screenTitle, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)) }
             item { SectionLabel("Mis tiendas", Modifier.padding(start = 4.dp)) }
             itemsIndexed(stores, key = { _, s -> s.id }) { i, s ->
+                // Tocar la tienda cambia su nombre: con dos de la misma cadena hay que saber cual es cual.
                 Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface)
+                        .clickable(onClickLabel = "Cambiar nombre") { renaming = s }.padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ChainChip(s.chainId, 32.dp)
@@ -170,6 +173,12 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
     ) { cp ->
         val code = cp.trim()
         if (WebCatalog.isPostalCode(code)) vm.setWebPrices(true, code) else vm.say("«$code» no es un código postal")
+    }
+    renaming?.let { s ->
+        TextDialog(
+            "Nombre de la tienda", "Nombre", s.name, { renaming = null },
+            hint = "Por ejemplo, el pueblo o el barrio: «${Chains.byId(s.chainId).name} Centro»",
+        ) { vm.renameStore(s, it) }
     }
     if (budgetDialog) TextDialog(
         "Presupuesto mensual", "Euros", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it, false) } ?: "", { budgetDialog = false },
