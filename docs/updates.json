@@ -1,8 +1,8 @@
 {
-  "versionCode": 7,
-  "versionName": "0.3.3",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.3/faltis-v0.3.3.apk",
-  "sha256": "7a105dd88da4786593f39ebf4b773c7b3efdaf2723aedcf4f51adf2d56a41a63",
-  "notas": "Puedes cambiar el nombre de tus tiendas (toca una en Ajustes). En Precios, los precios sacados de la web se marcan como «web».",
+  "versionCode": 8,
+  "versionName": "0.4.0",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.4.0/faltis-v0.4.0.apk",
+  "sha256": "8bc3a306a5c4c1a43b96bc4d227db21a2df556f6d9df4362b074d8985923d85e",
+  "notas": "Al tocar un producto en Precios ves su precio en cada una de tus tiendas y cuál es la más barata. Al tocar algo de tu lista puedes moverlo a otra lista de un toque.",
   "check_horas": 24
 }
