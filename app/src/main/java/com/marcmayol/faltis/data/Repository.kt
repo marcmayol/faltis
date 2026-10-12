@@ -30,6 +30,9 @@ import com.marcmayol.faltis.core.Taxonomy
 import com.marcmayol.faltis.core.Text
 import com.marcmayol.faltis.core.TicketLine
 import com.marcmayol.faltis.core.TicketParser
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -53,10 +56,11 @@ data class Settings(
     val includePromos: Boolean = false,
     val budgetCents: Long = 0,
     val themeMode: com.marcmayol.faltis.ui.theme.ThemeMode = com.marcmayol.faltis.ui.theme.ThemeMode.SYSTEM,
-    /** Capa D: precios de las tiendas online (Mercadona y Aldi). Desactivado de serie: usa internet. */
+    /** Capa D: precios de las tiendas online. Desactivado de serie: usa internet. */
     val webPrices: Boolean = false,
     val postalCode: String = "",
-    val mercadonaWarehouse: String = "",
+    /** Zona de precios de cada cadena para [postalCode] (almacen, tienda, region), ya resuelta. */
+    val webZones: Map<String, String> = emptyMap(),
 )
 
 @Serializable
@@ -95,6 +99,7 @@ class Repository(private val context: Context) {
         val webPrices = booleanPreferencesKey("web_prices")
         val postalCode = androidx.datastore.preferences.core.stringPreferencesKey("postal_code")
         val mercadonaWh = androidx.datastore.preferences.core.stringPreferencesKey("mercadona_wh")
+        val webZones = androidx.datastore.preferences.core.stringPreferencesKey("web_zones")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p: Preferences ->
@@ -107,7 +112,8 @@ class Repository(private val context: Context) {
             themeMode = p[K.theme]?.let { runCatching { com.marcmayol.faltis.ui.theme.ThemeMode.valueOf(it) }.getOrNull() } ?: com.marcmayol.faltis.ui.theme.ThemeMode.SYSTEM,
             webPrices = p[K.webPrices] ?: false,
             postalCode = p[K.postalCode] ?: "",
-            mercadonaWarehouse = p[K.mercadonaWh] ?: "",
+            // El almacen de Mercadona se guardaba aparte hasta la 0.4.
+            webZones = decodeZones(p[K.webZones]) + listOfNotNull(p[K.mercadonaWh]?.takeIf { it.isNotBlank() }?.let { "mercadona" to it }),
         )
     }
 
@@ -119,8 +125,17 @@ class Repository(private val context: Context) {
     suspend fun setTheme(mode: com.marcmayol.faltis.ui.theme.ThemeMode) = context.dataStore.edit { it[K.theme] = mode.name }
     suspend fun setWebPrices(on: Boolean, postalCode: String? = null) = context.dataStore.edit {
         it[K.webPrices] = on
-        if (postalCode != null && postalCode != it[K.postalCode]) { it[K.postalCode] = postalCode; it.remove(K.mercadonaWh) }
+        if (postalCode != null && postalCode != it[K.postalCode]) { it[K.postalCode] = postalCode; it.remove(K.mercadonaWh); it.remove(K.webZones) }
     }
+
+    private suspend fun saveZone(chain: String, zone: String) = context.dataStore.edit {
+        it[K.webZones] = encodeZones(decodeZones(it[K.webZones]) + (chain to zone))
+    }
+
+    private fun decodeZones(raw: String?): Map<String, String> =
+        raw.orEmpty().split(';').mapNotNull { e -> e.split('=', limit = 2).takeIf { it.size == 2 && it[1].isNotBlank() }?.let { it[0] to it[1] } }.toMap()
+
+    private fun encodeZones(m: Map<String, String>) = m.entries.joinToString(";") { "${it.key}=${it.value}" }
 
     // ── Conversion a modelos de :core ──
     fun ProductEntity.toRef() = ProductRef(
@@ -483,22 +498,31 @@ class Repository(private val context: Context) {
         val typed = needs.mapNotNull { n -> taxonomy.byId(n.typeId)?.let { n to it } }.distinctBy { it.second.id }
         if (typed.isEmpty()) return 0
         val dayAgo = now() - 24 * 3600_000L
-        var saved = 0
-        for (chain in chains) {
-            val zone = when (chain) {
-                "mercadona" -> s.mercadonaWarehouse.takeIf { it.isNotBlank() }
-                    ?: web.mercadonaWarehouse(s.postalCode)?.also { wh -> context.dataStore.edit { it[K.mercadonaWh] = wh } }
-                else -> WebCatalog.aldiRegion(s.postalCode)
-            } ?: continue
-            for ((need, type) in typed) {
-                if (!force && (dao.lastWebPrice(chain, type.id) ?: 0) > dayAgo) continue
-                val found = web.search(chain, need.text, zone)
-                    .mapNotNull { p -> taxonomy.match(p.name, tolerateTypos = false)?.type?.takeIf { type.covers(it) }?.let { p to it } }
-                    .take(MAX_WEB_PER_NEED)
-                db.withTransaction { found.forEach { (p, t) -> saveWebPrice(p, t.id); saved++ } }
-            }
+        // Cada cadena por su lado y a la vez: si una web falla o tarda, las demas siguen.
+        return coroutineScope {
+            chains.map { chain ->
+                async {
+                    // Si la web de una cadena falla, se deja esa cadena para la proxima vez.
+                    var saved = 0
+                    runCatching {
+                        val zone = s.webZones[chain]
+                            ?: web.zone(chain, s.postalCode)?.also { saveZone(chain, it) }
+                            ?: return@runCatching
+                        var searches = 0
+                        for ((need, type) in typed) {
+                            if (!force && (dao.lastWebPrice(chain, type.id) ?: 0) > dayAgo) continue
+                            // Algunas webs cortan si se buscan muchas cosas seguidas: el resto, en la proxima.
+                            if (searches++ >= WebPrices.maxSearches(chain)) break
+                            val found = web.search(chain, need.text, zone)
+                                .mapNotNull { p -> taxonomy.match(p.name, tolerateTypos = false)?.type?.takeIf { type.covers(it) }?.let { p to it } }
+                                .take(MAX_WEB_PER_NEED)
+                            db.withTransaction { found.forEach { (p, t) -> saveWebPrice(p, t.id); saved++ } }
+                        }
+                    }
+                    saved
+                }
+            }.awaitAll().sum()
         }
-        return saved
     }
 
     private suspend fun saveWebPrice(p: WebProduct, typeId: String) {
@@ -519,7 +543,7 @@ class Repository(private val context: Context) {
         dao.insertObs(
             PriceObsEntity(
                 productId = id, storeId = null, chainId = p.chainId, priceCents = p.priceCents,
-                kind = PriceKind.REGULAR.name, source = PriceSource.WEB.name, observedAtMillis = now(),
+                kind = (if (p.offer) PriceKind.PROMO else PriceKind.REGULAR).name, source = PriceSource.WEB.name, observedAtMillis = now(),
             ),
         )
     }

@@ -17,15 +17,17 @@ El plan, las especificaciones y el diseño están en `C:\Users\marcm\Desktop\Cis
   - `ProductMatcher`: port del matching de supermercapy (tamaños «6 x 1 l», EAN, marcas blancas, envases); validado con su dataset.
   - `Packs.fromText`: formato del envase leído del nombre.
   - `AisleLearner`: orden de pasillos (F-08).
-  - `WebCatalog`: lee las respuestas de las tiendas online de Mercadona y Aldi (precios web, capa D) y el aviso que los acompaña.
+  - `WebCatalog`: lee las respuestas de las tiendas online de 18 cadenas (precios web, capa D) y el aviso que los acompaña.
   - `SampleData`: datos de ejemplo ficticios y deterministas.
 - **`:app`**: Compose y Material 3, Room (v2), DataStore, ML Kit Text (en el APK) y PdfBox-Android.
   - Tema claro, oscuro y del sistema. Archivo e IBM Plex Mono (OFL) en `res/font`.
   - Importación de varios tickets a la vez (compartir varios PDF o «Importar varios tickets»).
   - Listas de un súper concreto: en una lista general, al añadir algo pregunta a qué lista de qué súper va.
-  - Precios web (opcional, en Ajustes, con código postal): Mercadona y Aldi desde el propio móvil, guardados como
-    precio de la cadena con el sello «web» y un aviso (franquicias, región, ofertas locales). Un ticket de tu tienda siempre gana.
-    Lidl no: su web solo pone precio a lo que está en oferta.
+  - Precios web (opcional, en Ajustes, con código postal), desde el propio móvil y solo de las cadenas de «mis tiendas»:
+    Mercadona, Aldi, Carrefour, Dia, Consum, Eroski, Caprabo, Alcampo, Bonpreu, Condis, bonÀrea, Ahorramás, Gadis,
+    HiperDino, BM, masymas, Froiz y Lidl (de Lidl solo las ofertas: su web no pone precio al resto).
+    Se guardan como precio de la cadena con el sello «web» y un aviso (franquicias, región, ofertas locales).
+    Un ticket de tu tienda siempre gana. Cada cadena va por su lado: si su web falla, las demás siguen.
 - **`:actualizador`**: auto-actualización fuera de Play Store (DracApps). Copia del módulo de Kuse vía Prompter; ver su README.
   Junto con los precios web (si se activan), es lo único que usa la red: el manifiesto `https://marcmayol.com/faltis/updates.json` y el APK de la Release.
   Solo actúa en la build release (la debug es otro paquete).

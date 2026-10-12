@@ -41,6 +41,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -134,7 +135,7 @@ fun ListScreen(
                     UpdateBanner(estado, { app.actualizador.actualizarAhora() }, Modifier.padding(bottom = 8.dp))
                 }
                 item {
-                    TotalHero(ui, stores.map { it.id to it.name }, stores.associate { it.id to it.chainId }, vm::selectStore, onCompare, onShop, onStores)
+                    TotalHero(ui, stores.map { it.id to it.name }, stores.associate { it.id to it.chainId }, vm::selectStore, onCompare, onShop, onStores, vm.webBusy.collectAsState().value)
                     Spacer(Modifier.height(10.dp))
                 }
                 if (ui.needs.isEmpty()) {
@@ -231,6 +232,7 @@ private fun TotalHero(
     onCompare: () -> Unit,
     onShop: () -> Unit,
     onStores: () -> Unit,
+    webBusy: Boolean = false,
 ) {
     GradientCard {
         if (ui.store == null) {
@@ -279,6 +281,11 @@ private fun TotalHero(
                 )
             }
             CoverageRing(basket?.pricedCount ?: 0, basket?.comparableCount ?: 0)
+        }
+        // La busqueda tarda unos segundos: sin aviso parecia que faltaban precios.
+        if (webBusy) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = Faltis.Ink2)
+            Text("Buscando precios en la web…", style = Type.secondary.copy(fontSize = 13.sp))
         }
         if (basket?.usesWebPrices() == true) WebPriceNotice(Modifier.padding(top = 10.dp))
         // Mejor alternativa (sobre los articulos comunes) -> Comparar.

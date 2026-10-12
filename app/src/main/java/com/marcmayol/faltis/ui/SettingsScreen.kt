@@ -117,8 +117,8 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SettingRow(
-                        "Precios web (Mercadona y Aldi)",
-                        "Antes de tu primer ticket, toma los precios de sus tiendas online. Usa internet; tus listas no salen del móvil.",
+                        "Precios web",
+                        "Antes de tu primer ticket, toma los precios de las tiendas online de tus cadenas. Usa internet; tus listas no salen del móvil.",
                     ) {
                         Switch(web, { on -> if (on && !WebCatalog.isPostalCode(settings?.postalCode ?: "")) postalDialog = true else vm.setWebPrices(on) },
                             colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))

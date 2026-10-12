@@ -10,8 +10,9 @@ https://github.com/jtayped/supermercapy · Copyright (c) 2024 Joel Taylor
   (`src/supermercapy/_match_text.py` y `match.py`): normalización, lector de tamaños, tokens,
   parecido por diferencias, marcas blancas, envases, validación de EAN y puntuación.
 - `core/.../WebCatalog.kt` y `app/.../data/WebPrices.kt` (precios web, opcionales) siguen lo que documenta
-  sobre las tiendas online de Mercadona y Aldi: los índices de búsqueda, el almacén por código postal y las
-  regiones de precio. Código propio; solo se consulta la búsqueda pública que usan sus webs.
+  sobre las tiendas online de Mercadona, Aldi, Lidl, Carrefour, Dia, Consum, Condis, Eroski, Caprabo,
+  Alcampo, Bonpreu, bonÀrea y Ahorramás: endpoints de búsqueda, zonas de precio por código postal y formato
+  de las respuestas. Código propio; solo se consulta la búsqueda pública que usan sus webs.
 - `core/src/test/resources/match/evaluation.json` es su dataset de evaluación, usado solo como
   test (no se incluye en la app). Contiene nombres y precios publicados por las cadenas.
 
