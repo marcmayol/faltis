@@ -209,6 +209,10 @@ class Repository(private val context: Context) {
     }
 
     suspend fun updateNeed(n: NeedEntity) = dao.updateNeed(n.copy(updatedAtMillis = now()))
+
+    /** Pasa la necesidad al final de otra lista. */
+    suspend fun moveNeed(n: NeedEntity, listId: Long) =
+        dao.updateNeed(n.copy(listId = listId, position = dao.maxPosition(listId) + 1, updatedAtMillis = now()))
     suspend fun deleteNeed(id: Long): NeedEntity? { val n = dao.need(id); dao.deleteNeed(id); return n }
     suspend fun restoreNeed(n: NeedEntity) = dao.insertNeed(n)
 

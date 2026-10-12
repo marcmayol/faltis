@@ -154,6 +154,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveNeed(n: NeedEntity) = run { repo.updateNeed(n) }
+
+    /** A una lista que ya existe ([listId]) o a la de un super ([storeId]), que se crea si hace falta. */
+    fun moveNeed(n: NeedEntity, listId: Long? = null, storeId: Long? = null) = run {
+        val target = listId?.let { id -> lists.value.firstOrNull { it.id == id } }
+            ?: storeId?.let { id -> stores.value.firstOrNull { it.id == id } }?.let { repo.storeList(it) }
+            ?: return@run
+        if (target.id == n.listId) return@run
+        repo.moveNeed(n, target.id)
+        say("«${n.text}» movido a «${target.name}»", "Ver lista") { repo.setActiveList(target.id) }
+    }
     fun selectStore(id: Long) = run { repo.setSelectedStore(id) }
     fun selectList(id: Long) = run { repo.setActiveList(id) }
     fun newList(name: String) = run { repo.createList(name) }

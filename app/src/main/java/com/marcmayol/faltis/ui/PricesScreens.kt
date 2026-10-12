@@ -41,6 +41,8 @@ import com.marcmayol.faltis.core.PriceBook
 import com.marcmayol.faltis.core.PriceKind
 import com.marcmayol.faltis.core.PriceSource
 import com.marcmayol.faltis.core.Packs
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import com.marcmayol.faltis.core.ProductRef
 import com.marcmayol.faltis.core.Text as T
 import com.marcmayol.faltis.ui.theme.Faltis
@@ -187,30 +189,23 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
                 }
                 item {
                     val now = Instant.now()
-                    val mine = with(vm.repo) { stores.map { it.toRef() } }.filter { it.chainId == p.chainId }
+                    val promos = settings?.includePromos == true
+                    // Una fila por cada tienda tuya: el producto mismo en su cadena y, en las demas,
+                    // el equivalente con precio que mas se le parece (y, a igual parecido, el mas barato).
+                    val rows = with(vm.repo) { stores.map { it.toRef() } }.map { s ->
+                        if (s.chainId == p.chainId) StoreOffer(s, p, null, b.bestObservation(p.id, s, now, promos))
+                        else b.productsById.values.asSequence().filter { it.chainId == s.chainId }
+                            .mapNotNull { o -> Equivalence.explain(p, o)?.let { eq -> b.bestObservation(o.id, s, now, promos)?.let { StoreOffer(s, o, eq.level, it) } } }
+                            .minWithOrNull(compareBy<StoreOffer> { it.level!!.ordinal }.thenBy { it.unitCents ?: it.best!!.first.priceCents })
+                            ?: StoreOffer(s, null, null, null)
+                    }
+                    // Solo se señala el mas barato entre lo comparable: el mismo producto o un equivalente, con precio por unidad.
+                    val cheapest = rows.filter { it.best != null && it.level != com.marcmayol.faltis.core.EquivalenceLevel.SIMILAR && it.unitCents != null }
+                        .takeIf { it.size > 1 }?.minByOrNull { it.unitCents!! }
                     SurfaceCard(Modifier.fillMaxWidth()) {
                         SectionLabel("En tus tiendas")
-                        if (mine.isEmpty()) Text("No es de ninguna de tus tiendas.", style = Type.secondary, modifier = Modifier.padding(top = 8.dp))
-                        mine.forEach { s ->
-                            val best = b.bestObservation(p.id, s, now, settings?.includePromos == true)
-                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                ChainChip(s.chainId, 30.dp)
-                                Column(Modifier.weight(1f)) {
-                                    Text(s.name, style = Type.row.copy(fontSize = 15.sp))
-                                    if (best?.first?.kind == PriceKind.MEMBER) Text("precio de socio", style = Type.secondary.copy(color = Faltis.Warn, fontSize = 12.sp))
-                                }
-                                if (best != null) {
-                                    val age = PriceBook.ageDays(best.first.observedAt, now)
-                                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        Text(euros(best.first.priceCents), style = Type.price.copy(fontSize = 18.sp))
-                                        Seal(
-                                            "${sourceLabel(best.first.source, best.second)} · ${ageText(age)}",
-                                            if (age > PriceBook.FRESH_DAYS) SealStyle.STALE else if (best.first.source == PriceSource.SAMPLE) SealStyle.NEUTRAL else SealStyle.FRESH,
-                                        )
-                                    }
-                                } else Text("sin precio reciente", style = Type.secondary)
-                            }
-                        }
+                        if (rows.isEmpty()) Text("Aún no has elegido tiendas.", style = Type.secondary, modifier = Modifier.padding(top = 8.dp))
+                        rows.forEach { r -> StoreOfferRow(r, r === cheapest, now) }
                     }
                 }
                 item {
@@ -229,7 +224,8 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
                     }
                 }
                 item {
-                    val others = b.productsById.values.filter { it.chainId != p.chainId }
+                    val mineChains = stores.map { it.chainId }.toSet()
+                    val others = b.productsById.values.filter { it.chainId != p.chainId && it.chainId !in mineChains }
                         .mapNotNull { o -> Equivalence.explain(p, o)?.let { o to it } }
                         .sortedBy { it.second.level.ordinal }.take(12)
                     SectionLabel("En otras cadenas")
@@ -256,6 +252,55 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
                 }
             }, Modifier.fillMaxWidth().padding(16.dp), icon = Icons.Filled.Add)
         }
+    }
+}
+
+/** Lo que cuesta un producto (o su equivalente) en una de tus tiendas. */
+private class StoreOffer(
+    val store: com.marcmayol.faltis.core.StoreRef,
+    val product: ProductRef?,
+    /** null: es el mismo producto. */
+    val level: com.marcmayol.faltis.core.EquivalenceLevel?,
+    val best: Pair<com.marcmayol.faltis.core.PriceObservation, Boolean>?,
+) {
+    /** €/kg, €/l o €/ud en centimos; a granel el precio ya es por kg o l. */
+    val unitCents: Long? = if (product == null || best == null) null
+        else if (product.netQty == null && product.netUnit != null) best.first.priceCents
+        else Packs.unitPrice(best.first.priceCents.toDouble(), product.netQty, product.netUnit)?.toLong()
+}
+
+@Composable
+private fun StoreOfferRow(r: StoreOffer, cheapest: Boolean, now: Instant) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ChainChip(r.store.chainId, 30.dp)
+        Column(Modifier.weight(1f)) {
+            Text(r.store.name, style = Type.row.copy(fontSize = 15.sp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val p = r.product
+            when {
+                p == null -> Text("Sin equivalente con precio", style = Type.secondary.copy(fontSize = 12.sp))
+                r.level != null -> Text(
+                    "${r.level.symbol} ${p.name}" + (if (r.level == com.marcmayol.faltis.core.EquivalenceLevel.SIMILAR) " · parecido" else ""),
+                    style = Type.secondary.copy(fontSize = 12.sp, color = if (r.level == com.marcmayol.faltis.core.EquivalenceLevel.SIMILAR) Faltis.Warn else Faltis.Ink2),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (r.best?.first?.kind == PriceKind.MEMBER) Text("precio de socio", style = Type.secondary.copy(color = Faltis.Warn, fontSize = 12.sp))
+            if (cheapest) Text("El más barato", style = Type.secondary.copy(color = Faltis.Saving, fontSize = 12.sp, fontWeight = FontWeight.W700))
+        }
+        val best = r.best
+        if (best != null && r.product != null) {
+            val age = PriceBook.ageDays(best.first.observedAt, now)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(euros(best.first.priceCents), style = Type.price.copy(fontSize = 18.sp))
+                r.unitCents?.takeIf { r.product.netQty != null }?.let {
+                    Text("${euros(it)}${Packs.unitPriceLabel(r.product.netUnit).removePrefix("€")}", style = Type.secondary.copy(fontSize = 12.sp))
+                }
+                Seal(
+                    "${sourceLabel(best.first.source, best.second)} · ${ageText(age)}",
+                    if (age > PriceBook.FRESH_DAYS) SealStyle.STALE else if (best.first.source == PriceSource.SAMPLE) SealStyle.NEUTRAL else SealStyle.FRESH,
+                )
+            }
+        } else if (r.product != null || r.level == null) Text("sin precio", style = Type.secondary)
     }
 }
 

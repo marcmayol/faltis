@@ -448,6 +448,18 @@ private fun NeedSheet(n: NeedEntity, vm: AppViewModel, onDismiss: () -> Unit, on
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Faltis.Surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             OutlinedTextField(text, { text = it }, label = { Text("Qué necesitas") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            // Arriba del todo: mover a otra lista de un toque: las de tus supers (aunque aun no existan) y las generales.
+            val lists by vm.lists.collectAsState()
+            val stores by vm.stores.collectAsState()
+            val storeTargets = stores.filter { s -> lists.none { it.storeId == s.id && it.id == n.listId } }
+            val listTargets = lists.filter { l -> l.storeId == null && l.id != n.listId }
+            if (storeTargets.isNotEmpty() || listTargets.isNotEmpty()) {
+                SectionLabel("Mover a otra lista")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    storeTargets.forEach { s -> SelectPill(s.name, false) { vm.moveNeed(n, storeId = s.id); onDismiss() } }
+                    listTargets.forEach { l -> SelectPill(l.name, false) { vm.moveNeed(n, listId = l.id); onDismiss() } }
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SquareIconButton(Icons.Filled.Remove, "Menos", { qty = (qty - 1).coerceAtLeast(0.25) })
                 Text(qtyText(qty), style = Type.bigNumber.copy(fontSize = 28.sp), modifier = Modifier.width(72.dp))
