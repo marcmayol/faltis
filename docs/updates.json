@@ -1,8 +1,8 @@
 {
-  "versionCode": 3,
-  "versionName": "0.2.1",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.2.1/faltis-v0.2.1.apk",
-  "sha256": "412f6414ae09193daa8e4433798c9bdab8b3630e94c7c599827587480de23a94",
-  "notas": "La app ahora va dentro de un Scaffold: los márgenes de la barra de estado, la de navegación y la barra inferior se miden en vez de ir a ojo, así que nada queda tapado en móviles con barras más altas.",
+  "versionCode": 4,
+  "versionName": "0.3.0",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.0/faltis-v0.3.0.apk",
+  "sha256": "c85f755ac7ff239121858942d35fc8241f6b7a399867b79e8d823066366d8650",
+  "notas": "Las listas pueden ser de un súper concreto: en una lista general, al añadir algo te pregunta a qué lista de qué súper va. Ya no pregunta «pueblo o barrio» al añadir un súper. Nuevo y opcional (Ajustes): precios web de Mercadona y Aldi, con el sello «web» y un aviso de que en tu tienda pueden variar por franquicia, región u ofertas locales; el precio de tus tickets siempre manda.",
   "check_horas": 24
 }
