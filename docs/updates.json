@@ -1,8 +1,8 @@
 {
-  "versionCode": 8,
-  "versionName": "0.4.0",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.4.0/faltis-v0.4.0.apk",
-  "sha256": "8bc3a306a5c4c1a43b96bc4d227db21a2df556f6d9df4362b074d8985923d85e",
-  "notas": "Al tocar un producto en Precios ves su precio en cada una de tus tiendas y cuál es la más barata. Al tocar algo de tu lista puedes moverlo a otra lista de un toque.",
+  "versionCode": 9,
+  "versionName": "0.5.0",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.5.0/faltis-v0.5.0.apk",
+  "sha256": "3071d6a84c2356889d867ae8eba7ecd340e399b9dcf5e21d4b581b84a4552dd5",
+  "notas": "Precios web de 18 cadenas (Mercadona, Aldi, Carrefour, Dia, Consum, Eroski, Caprabo, Alcampo, Bonpreu, Condis, bonÀrea, Ahorramás, Gadis, HiperDino, BM, masymas, Froiz y las ofertas de Lidl), cada una por su lado. Aviso de «Buscando precios en la web…» en la tarjeta del total.",
   "check_horas": 24
 }
