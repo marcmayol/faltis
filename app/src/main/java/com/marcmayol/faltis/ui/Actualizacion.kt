@@ -93,7 +93,7 @@ fun UpdatesSection(actualizador: Actualizador) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
                 Text("Buscar actualizaciones solo", style = Type.body.copy(fontSize = 14.sp))
-                Text("Una vez al día. Es lo único que usa internet.", style = Type.secondary.copy(fontSize = 12.sp))
+                Text("Una vez al día.", style = Type.secondary.copy(fontSize = 12.sp))
             }
             Switch(auto, { auto = it; actualizador.buscarAutomaticamente = it }, colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
         }

@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.marcmayol.faltis.BuildConfig
@@ -161,12 +162,16 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
         }
     }
     if (postalDialog) TextDialog(
-        "Tu código postal", "Para los precios de tu zona (Aldi cambia en Baleares y Canarias)", settings?.postalCode ?: "", { postalDialog = false },
+        "Tu código postal", "Código postal", settings?.postalCode ?: "", { postalDialog = false },
+        hint = "Para los precios de tu zona: Aldi cambia en Baleares y Canarias", keyboard = KeyboardType.Number,
     ) { cp ->
         val code = cp.trim()
         if (WebCatalog.isPostalCode(code)) vm.setWebPrices(true, code) else vm.say("«$code» no es un código postal")
     }
-    if (budgetDialog) TextDialog("Presupuesto mensual", "Euros (0 para quitarlo)", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it, false) } ?: "", { budgetDialog = false }) { v ->
+    if (budgetDialog) TextDialog(
+        "Presupuesto mensual", "Euros", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it, false) } ?: "", { budgetDialog = false },
+        hint = "0 para quitarlo", keyboard = KeyboardType.Decimal,
+    ) { v ->
         vm.setBudget(((v.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0) * 100).roundToLong())
     }
     if (wipe) AlertDialog(

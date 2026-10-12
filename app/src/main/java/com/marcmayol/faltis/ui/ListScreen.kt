@@ -166,7 +166,7 @@ fun ListScreen(
     }
     if (newListDialog) TextDialog("Nueva lista", "Nombre", "", { newListDialog = false }) { vm.newList(it) }
     if (renameDialog) ui.list?.let { l -> TextDialog("Renombrar lista", "Nombre", l.name, { renameDialog = false }) { vm.renameList(l, it) } }
-    if (importDialog) TextDialog("Importar texto", "Pega tu lista (una por línea o con comas)", "", { importDialog = false }, multiline = true) { add(it) }
+    if (importDialog) TextDialog("Importar texto", "Tu lista", "", { importDialog = false }, multiline = true, hint = "Una cosa por línea o separadas por comas") { add(it) }
     pendingAdd?.let { text ->
         AddWhereDialog(
             text, stores, lists, ui.list,
@@ -547,7 +547,11 @@ private fun WhereRow(title: String, subtitle: String?, icon: (@Composable () -> 
 }
 
 @Composable
-fun TextDialog(title: String, label: String, initial: String, onDismiss: () -> Unit, multiline: Boolean = false, onOk: (String) -> Unit) {
+fun TextDialog(
+    title: String, label: String, initial: String, onDismiss: () -> Unit, multiline: Boolean = false,
+    // Lo que explica el campo va debajo: en la etiqueta, con letra grande, salta de linea y pisa el borde.
+    hint: String? = null, keyboard: KeyboardType = KeyboardType.Text, onOk: (String) -> Unit,
+) {
     var value by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -555,9 +559,10 @@ fun TextDialog(title: String, label: String, initial: String, onDismiss: () -> U
         title = { Text(title, style = Type.title) },
         text = {
             OutlinedTextField(
-                value, { value = it }, label = { Text(label) }, singleLine = !multiline,
+                value, { value = it }, label = { Text(label, maxLines = 1) }, singleLine = !multiline,
                 minLines = if (multiline) 4 else 1, modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                supportingText = hint?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(keyboardType = keyboard),
             )
         },
         confirmButton = { TextButton({ onOk(value); onDismiss() }, enabled = value.isNotBlank()) { Text("Aceptar") } },

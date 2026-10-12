@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.ime
+
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +39,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -144,15 +150,21 @@ private fun Root(vm: AppViewModel) {
     val s = settings
     val showBar = s?.onboardingDone == true && tabs.any { it.route == route }
 
+    // Alto de la barra de abajo: el Scaffold ya levanta el aviso por encima de ella, y con el teclado
+    // abierto (que la tapa) no hay que sumarla otra vez al alto del teclado.
+    var barBottom by remember { mutableStateOf(0.dp) }
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+
     // Un solo Scaffold para toda la app: sus PaddingValues llevan la barra de estado, la de
     // navegacion y la barra flotante (medida, no a ojo) a cada pantalla.
     Scaffold(
         containerColor = Faltis.Ground,
         contentColor = Faltis.Ink,
         // Por encima de la barra para escribir de la lista, de los botones de abajo y del teclado.
-        snackbarHost = { SnackbarHost(snackbar, Modifier.imePadding().padding(bottom = 64.dp)) },
+        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = 64.dp + (imeBottom - barBottom).coerceAtLeast(0.dp))) },
         bottomBar = { if (showBar) FloatingBar(route) { nav.goTab(it) } },
     ) { padding ->
+        SideEffect { barBottom = padding.calculateBottomPadding() }
         // Consumido para que imePadding no vuelva a sumar la barra de navegacion al abrir el teclado.
         Box(Modifier.fillMaxSize().consumeWindowInsets(padding)) {
             when {
