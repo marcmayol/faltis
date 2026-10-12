@@ -1,8 +1,8 @@
 {
-  "versionCode": 6,
-  "versionName": "0.3.2",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.2/faltis-v0.3.2.apk",
-  "sha256": "8b7ef3d159ee57894b8134a12ac2ef238fe78be3c9af034934746aa1606dcdd6",
-  "notas": "Arreglos para móviles pequeños y letra grande: la bienvenida ya deja empezar siempre, la búsqueda de tiendas no queda tapada por el teclado, Atrás vuelve al paso anterior sin perder lo elegido y los nombres de las tiendas se leen enteros.",
+  "versionCode": 7,
+  "versionName": "0.3.3",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.3/faltis-v0.3.3.apk",
+  "sha256": "7a105dd88da4786593f39ebf4b773c7b3efdaf2723aedcf4f51adf2d56a41a63",
+  "notas": "Puedes cambiar el nombre de tus tiendas (toca una en Ajustes). En Precios, los precios sacados de la web se marcan como «web».",
   "check_horas": 24
 }
