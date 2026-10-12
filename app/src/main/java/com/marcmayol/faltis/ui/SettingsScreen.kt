@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -77,15 +79,16 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
         ) {
             item { Text("Ajustes", style = Type.screenTitle, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)) }
             item { SectionLabel("Mis tiendas", Modifier.padding(start = 4.dp)) }
-            items(stores, key = { it.id }) { s ->
+            itemsIndexed(stores, key = { _, s -> s.id }) { i, s ->
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ChainChip(s.chainId, 32.dp)
-                    Text(s.name, style = Type.row.copy(fontSize = 15.sp), modifier = Modifier.weight(1f))
-                    IconButton({ vm.moveStore(s, -1) }) { Icon(Icons.Filled.KeyboardArrowUp, "Subir") }
-                    IconButton({ vm.moveStore(s, 1) }) { Icon(Icons.Filled.KeyboardArrowDown, "Bajar") }
+                    Text(s.name, style = Type.row.copy(fontSize = 15.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    // Solo las flechas que sirven: con letra grande, tres botones partian el nombre.
+                    if (i > 0) IconButton({ vm.moveStore(s, -1) }) { Icon(Icons.Filled.KeyboardArrowUp, "Subir") }
+                    if (i < stores.lastIndex) IconButton({ vm.moveStore(s, 1) }) { Icon(Icons.Filled.KeyboardArrowDown, "Bajar") }
                     IconButton({ vm.hideStore(s) }) { Icon(Icons.Filled.Close, "Quitar de mis tiendas") }
                 }
             }
