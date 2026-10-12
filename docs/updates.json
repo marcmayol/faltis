@@ -1,8 +1,8 @@
 {
-  "versionCode": 4,
-  "versionName": "0.3.0",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.0/faltis-v0.3.0.apk",
-  "sha256": "c85f755ac7ff239121858942d35fc8241f6b7a399867b79e8d823066366d8650",
-  "notas": "Las listas pueden ser de un súper concreto: en una lista general, al añadir algo te pregunta a qué lista de qué súper va. Ya no pregunta «pueblo o barrio» al añadir un súper. Nuevo y opcional (Ajustes): precios web de Mercadona y Aldi, con el sello «web» y un aviso de que en tu tienda pueden variar por franquicia, región u ofertas locales; el precio de tus tickets siempre manda.",
+  "versionCode": 5,
+  "versionName": "0.3.1",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.1/faltis-v0.3.1.apk",
+  "sha256": "5d3a7e9430dfc073e4de412c2edc6cfad91fe8fdc3cc7e7319705a288ec502b6",
+  "notas": "Arreglos: el aviso «Añadido a…» ya no se queda a media pantalla con el teclado abierto; el código postal se escribe con teclado numérico y los diálogos se leen bien con letra grande; el texto de Actualizaciones ya cuenta que los precios web también usan internet.",
   "check_horas": 24
 }
