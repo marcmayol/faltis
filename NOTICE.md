@@ -9,6 +9,9 @@ https://github.com/jtayped/supermercapy · Copyright (c) 2024 Joel Taylor
 - `core/src/main/kotlin/.../ProductMatcher.kt` es un port a Kotlin de su matching de productos
   (`src/supermercapy/_match_text.py` y `match.py`): normalización, lector de tamaños, tokens,
   parecido por diferencias, marcas blancas, envases, validación de EAN y puntuación.
+- `core/.../WebCatalog.kt` y `app/.../data/WebPrices.kt` (precios web, opcionales) siguen lo que documenta
+  sobre las tiendas online de Mercadona y Aldi: los índices de búsqueda, el almacén por código postal y las
+  regiones de precio. Código propio; solo se consulta la búsqueda pública que usan sus webs.
 - `core/src/test/resources/match/evaluation.json` es su dataset de evaluación, usado solo como
   test (no se incluye en la app). Contiene nombres y precios publicados por las cadenas.
 

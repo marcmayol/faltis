@@ -7,7 +7,7 @@ import java.time.Instant
 enum class PriceKind { REGULAR, PROMO, MEMBER }
 
 /** Orden de fiabilidad: la primera gana en empate de fecha (F-05.2). */
-enum class PriceSource { TICKET_PDF, TICKET_PHOTO, MANUAL, COMMUNITY, SAMPLE }
+enum class PriceSource { TICKET_PDF, TICKET_PHOTO, MANUAL, COMMUNITY, WEB, SAMPLE }
 
 enum class NeedState { PENDING, IN_CART, BOUGHT }
 

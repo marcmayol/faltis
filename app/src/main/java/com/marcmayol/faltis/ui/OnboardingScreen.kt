@@ -111,7 +111,6 @@ private fun Bullet(symbol: String, text: String) {
 @Composable
 private fun StoresStep(chosen: MutableList<Pair<String, String>>, modifier: Modifier) {
     var query by remember { mutableStateOf("") }
-    var naming by remember { mutableStateOf<String?>(null) }
     Column(modifier.fillMaxWidth()) {
         Text("¿Dónde haces\nla compra?", style = Type.heroNumber.copy(fontSize = 34.sp, lineHeight = 36.sp), modifier = Modifier.padding(top = 26.dp))
         Text("Solo compararemos estas tiendas. La primera es la que verás por defecto.", style = Type.secondary.copy(fontSize = 15.sp), modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
@@ -126,8 +125,7 @@ private fun StoresStep(chosen: MutableList<Pair<String, String>>, modifier: Modi
                     Text("${i + 1}", style = Type.row.copy(color = Faltis.ActionText), modifier = Modifier.width(16.dp))
                     ChainChip(chain, 34.dp)
                     Column(Modifier.weight(1f)) {
-                        Text(Chains.byId(chain).name, style = Type.row)
-                        Text(name.removePrefix(Chains.byId(chain).name).trim().ifBlank { "Sin lugar" }, style = Type.secondary)
+                        Text(name, style = Type.row)
                     }
                     IconButton({ if (i > 0) { val x = chosen.removeAt(i); chosen.add(i - 1, x) } }) { Icon(Icons.Filled.KeyboardArrowUp, "Subir") }
                     IconButton({ if (i < chosen.lastIndex) { val x = chosen.removeAt(i); chosen.add(i + 1, x) } }) { Icon(Icons.Filled.KeyboardArrowDown, "Bajar") }
@@ -143,16 +141,11 @@ private fun StoresStep(chosen: MutableList<Pair<String, String>>, modifier: Modi
                 Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ChainChip(c.id, 34.dp)
                     Text(c.name, style = Type.row, modifier = Modifier.weight(1f))
-                    IconButton({ naming = c.id }, Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Faltis.Elevated)) {
+                    IconButton({ chosen += c.id to newStoreName(c.id, chosen.map { it.second }) }, Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(Faltis.Elevated)) {
                         Icon(Icons.Filled.Add, "Añadir ${c.name}", tint = Faltis.Saving)
                     }
                 }
             }
-        }
-    }
-    naming?.let { chain ->
-        TextDialog("¿Qué ${Chains.byId(chain).name}?", "Pueblo o barrio (p. ej. Artà)", "", { naming = null }) { place ->
-            chosen += chain to "${Chains.byId(chain).name} ${place.trim()}".trim()
         }
     }
 }

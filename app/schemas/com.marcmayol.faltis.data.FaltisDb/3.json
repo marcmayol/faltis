@@ -1,0 +1,662 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "abc0d9addaf6d8189585c9677260df18",
+    "entities": [
+      {
+        "tableName": "store",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chainId` TEXT NOT NULL, `name` TEXT NOT NULL, `isFavorite` INTEGER NOT NULL, `position` INTEGER NOT NULL, `isSample` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chainId",
+            "columnName": "chainId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSample",
+            "columnName": "isSample",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "product",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chainId` TEXT NOT NULL, `name` TEXT NOT NULL, `nameNorm` TEXT NOT NULL, `brand` TEXT, `isPrivateLabel` INTEGER NOT NULL, `typeId` TEXT, `variant` TEXT, `tags` TEXT NOT NULL, `netQty` REAL, `netUnit` TEXT, `ean` TEXT, `isSample` INTEGER NOT NULL, `fromTicket` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chainId",
+            "columnName": "chainId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameNorm",
+            "columnName": "nameNorm",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isPrivateLabel",
+            "columnName": "isPrivateLabel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typeId",
+            "columnName": "typeId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "variant",
+            "columnName": "variant",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tags",
+            "columnName": "tags",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "netQty",
+            "columnName": "netQty",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "netUnit",
+            "columnName": "netUnit",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ean",
+            "columnName": "ean",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSample",
+            "columnName": "isSample",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fromTicket",
+            "columnName": "fromTicket",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_product_chainId",
+            "unique": false,
+            "columnNames": [
+              "chainId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_product_chainId` ON `${TABLE_NAME}` (`chainId`)"
+          },
+          {
+            "name": "index_product_nameNorm",
+            "unique": false,
+            "columnNames": [
+              "nameNorm"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_product_nameNorm` ON `${TABLE_NAME}` (`nameNorm`)"
+          },
+          {
+            "name": "index_product_ean",
+            "unique": false,
+            "columnNames": [
+              "ean"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_product_ean` ON `${TABLE_NAME}` (`ean`)"
+          }
+        ]
+      },
+      {
+        "tableName": "price_obs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `productId` INTEGER NOT NULL, `storeId` INTEGER, `chainId` TEXT NOT NULL, `priceCents` INTEGER NOT NULL, `unitPriceCents` INTEGER, `kind` TEXT NOT NULL, `source` TEXT NOT NULL, `observedAtMillis` INTEGER NOT NULL, `purchaseId` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "chainId",
+            "columnName": "chainId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "priceCents",
+            "columnName": "priceCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unitPriceCents",
+            "columnName": "unitPriceCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observedAtMillis",
+            "columnName": "observedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseId",
+            "columnName": "purchaseId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_price_obs_productId",
+            "unique": false,
+            "columnNames": [
+              "productId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_price_obs_productId` ON `${TABLE_NAME}` (`productId`)"
+          },
+          {
+            "name": "index_price_obs_storeId",
+            "unique": false,
+            "columnNames": [
+              "storeId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_price_obs_storeId` ON `${TABLE_NAME}` (`storeId`)"
+          },
+          {
+            "name": "index_price_obs_purchaseId",
+            "unique": false,
+            "columnNames": [
+              "purchaseId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_price_obs_purchaseId` ON `${TABLE_NAME}` (`purchaseId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "shopping_list",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `createdAtMillis` INTEGER NOT NULL, `isSample` INTEGER NOT NULL, `storeId` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSample",
+            "columnName": "isSample",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "need",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `listId` INTEGER NOT NULL, `text` TEXT NOT NULL, `typeId` TEXT, `qty` REAL NOT NULL, `unit` TEXT NOT NULL, `restrictions` TEXT NOT NULL, `pinnedProductId` INTEGER, `state` TEXT NOT NULL, `position` INTEGER NOT NULL, `cartOrder` INTEGER, `addedAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, `purchaseId` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "listId",
+            "columnName": "listId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typeId",
+            "columnName": "typeId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "qty",
+            "columnName": "qty",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restrictions",
+            "columnName": "restrictions",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinnedProductId",
+            "columnName": "pinnedProductId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cartOrder",
+            "columnName": "cartOrder",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "addedAtMillis",
+            "columnName": "addedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseId",
+            "columnName": "purchaseId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_need_listId",
+            "unique": false,
+            "columnNames": [
+              "listId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_need_listId` ON `${TABLE_NAME}` (`listId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "aisle_order",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storeId` INTEGER NOT NULL, `key` TEXT NOT NULL, `avgPos` REAL NOT NULL, `samples` INTEGER NOT NULL, PRIMARY KEY(`storeId`, `key`))",
+        "fields": [
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "avgPos",
+            "columnName": "avgPos",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "samples",
+            "columnName": "samples",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "storeId",
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "purchase",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `storeId` INTEGER, `chainId` TEXT NOT NULL, `dateEpochDay` INTEGER NOT NULL, `totalReadCents` INTEGER, `totalLinesCents` INTEGER, `source` TEXT NOT NULL, `reconciliationJson` TEXT, `createdAtMillis` INTEGER NOT NULL, `invoice` TEXT, `timeMinutes` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "chainId",
+            "columnName": "chainId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateEpochDay",
+            "columnName": "dateEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalReadCents",
+            "columnName": "totalReadCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "totalLinesCents",
+            "columnName": "totalLinesCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reconciliationJson",
+            "columnName": "reconciliationJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invoice",
+            "columnName": "invoice",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeMinutes",
+            "columnName": "timeMinutes",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "purchase_line",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `purchaseId` INTEGER NOT NULL, `rawText` TEXT NOT NULL, `description` TEXT NOT NULL, `qty` REAL, `weightKg` REAL, `amountCents` INTEGER, `discountCents` INTEGER NOT NULL, `kind` TEXT NOT NULL, `typeId` TEXT, `productId` INTEGER, `confidence` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseId",
+            "columnName": "purchaseId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawText",
+            "columnName": "rawText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qty",
+            "columnName": "qty",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "amountCents",
+            "columnName": "amountCents",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "discountCents",
+            "columnName": "discountCents",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typeId",
+            "columnName": "typeId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_purchase_line_purchaseId",
+            "unique": false,
+            "columnNames": [
+              "purchaseId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_purchase_line_purchaseId` ON `${TABLE_NAME}` (`purchaseId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "abbreviation",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`chainId` TEXT NOT NULL, `rawKey` TEXT NOT NULL, `productId` INTEGER, `typeId` TEXT, `confirmations` INTEGER NOT NULL, PRIMARY KEY(`chainId`, `rawKey`))",
+        "fields": [
+          {
+            "fieldPath": "chainId",
+            "columnName": "chainId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawKey",
+            "columnName": "rawKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "typeId",
+            "columnName": "typeId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "confirmations",
+            "columnName": "confirmations",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "chainId",
+            "rawKey"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'abc0d9addaf6d8189585c9677260df18')"
+    ]
+  }
+}

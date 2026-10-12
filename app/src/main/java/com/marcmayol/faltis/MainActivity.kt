@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -132,7 +133,7 @@ private fun Root(vm: AppViewModel) {
     LaunchedEffect(Unit) {
         vm.messages.collect { m ->
             scope.launch {
-                val r = snackbar.showSnackbar(m.text, actionLabel = if (m.undo != null) "Deshacer" else null, duration = SnackbarDuration.Short)
+                val r = snackbar.showSnackbar(m.text, actionLabel = if (m.undo != null) m.actionLabel else null, duration = SnackbarDuration.Short)
                 if (r == SnackbarResult.ActionPerformed) m.undo?.let { vm.run { it() } }
             }
         }
@@ -148,8 +149,8 @@ private fun Root(vm: AppViewModel) {
     Scaffold(
         containerColor = Faltis.Ground,
         contentColor = Faltis.Ink,
-        // Por encima de la barra para escribir de la lista y de los botones de abajo de cada pantalla.
-        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = 64.dp)) },
+        // Por encima de la barra para escribir de la lista, de los botones de abajo y del teclado.
+        snackbarHost = { SnackbarHost(snackbar, Modifier.imePadding().padding(bottom = 64.dp)) },
         bottomBar = { if (showBar) FloatingBar(route) { nav.goTab(it) } },
     ) { padding ->
         // Consumido para que imePadding no vuelva a sumar la barra de navegacion al abrir el teclado.

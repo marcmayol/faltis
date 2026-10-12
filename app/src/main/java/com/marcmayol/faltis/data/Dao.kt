@@ -31,6 +31,17 @@ interface FaltisDao {
     @Query("SELECT * FROM product WHERE id = :id") suspend fun product(id: Long): ProductEntity?
     @Insert suspend fun insertProduct(p: ProductEntity): Long
     @Insert suspend fun insertProducts(p: List<ProductEntity>): List<Long>
+    @Update suspend fun updateProduct(p: ProductEntity)
+    /** Producto ya traido de la web (ni de ticket ni de ejemplo). */
+    @Query("SELECT * FROM product WHERE chainId = :chainId AND nameNorm = :nameNorm AND isSample = 0 AND fromTicket = 0 LIMIT 1")
+    suspend fun webProduct(chainId: String, nameNorm: String): ProductEntity?
+    @Query("DELETE FROM price_obs WHERE productId = :productId AND source = 'WEB'") suspend fun deleteWebObs(productId: Long)
+    /** Ultima vez que se trajeron de la web precios de ese tipo (o uno mas concreto) en esa cadena. */
+    @Query(
+        "SELECT MAX(o.observedAtMillis) FROM price_obs o JOIN product p ON p.id = o.productId " +
+            "WHERE o.source = 'WEB' AND o.chainId = :chainId AND (p.typeId = :typeId OR p.typeId LIKE :typeId || '/%')",
+    )
+    suspend fun lastWebPrice(chainId: String, typeId: String): Long?
 
     @Query("SELECT * FROM price_obs") fun allObs(): Flow<List<PriceObsEntity>>
     @Insert suspend fun insertObs(o: PriceObsEntity): Long
@@ -99,7 +110,7 @@ interface FaltisDao {
         StoreEntity::class, ProductEntity::class, PriceObsEntity::class, ListEntity::class, NeedEntity::class,
         AisleOrderEntity::class, PurchaseEntity::class, PurchaseLineEntity::class, AbbreviationEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class FaltisDb : RoomDatabase() {
@@ -111,6 +122,13 @@ abstract class FaltisDb : RoomDatabase() {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE purchase ADD COLUMN invoice TEXT")
                 db.execSQL("ALTER TABLE purchase ADD COLUMN timeMinutes INTEGER")
+            }
+        }
+
+        /** v3: listas de un super concreto. */
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shopping_list ADD COLUMN storeId INTEGER")
             }
         }
     }

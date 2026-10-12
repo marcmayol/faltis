@@ -235,7 +235,6 @@ fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit,
     var editing by remember { mutableStateOf<Int?>(null) }
     var chainMenu by remember { mutableStateOf(false) }
     var storeMenu by remember { mutableStateOf(false) }
-    var newStore by remember { mutableStateOf(false) }
     val chainStores = stores.filter { it.chainId == d.chainId }
     val fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
@@ -255,7 +254,7 @@ fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit,
                             SelectPill(chainStores.firstOrNull { it.id == d.storeId }?.name ?: "Elegir tienda", d.storeId == null) { storeMenu = true }
                             DropdownMenu(storeMenu, { storeMenu = false }) {
                                 chainStores.forEach { s -> DropdownMenuItem(text = { Text(s.name) }, onClick = { vm.updateDraft { it.copy(storeId = s.id) }; storeMenu = false }) }
-                                DropdownMenuItem(text = { Text("Nueva tienda…") }, onClick = { storeMenu = false; newStore = true })
+                                DropdownMenuItem(text = { Text("Nueva tienda…") }, onClick = { storeMenu = false; vm.createStoreForDraft() })
                             }
                         }
                     }
@@ -316,7 +315,6 @@ fun TicketReviewScreen(vm: AppViewModel, onBack: () -> Unit, onNext: () -> Unit,
     }
 
     editing?.let { i -> LineEditor(vm, d.lines[i], d.chainId, onDismiss = { editing = null }) { updated -> vm.updateDraft { dd -> dd.copy(lines = dd.lines.toMutableList().also { it[i] = updated }) } } }
-    if (newStore) TextDialog("Nueva tienda de ${Chains.byId(d.chainId).name}", "Pueblo o barrio", "", { newStore = false }) { vm.createStoreForDraft("${Chains.byId(d.chainId).name} $it") }
 }
 
 @Composable

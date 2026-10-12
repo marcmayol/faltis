@@ -53,6 +53,8 @@ data class ListEntity(
     val name: String,
     val createdAtMillis: Long,
     val isSample: Boolean = false,
+    /** La lista de un super concreto; null si es una lista general. */
+    val storeId: Long? = null,
 )
 
 @Entity(tableName = "need", indices = [Index("listId")])

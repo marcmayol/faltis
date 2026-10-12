@@ -57,6 +57,13 @@ fun CompareScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: () -> Unit, on
                         Switch(settings?.includePromos == true, vm::setPromos, colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
                     }
                 }
+                val baskets = when (val c = ui.comparison) {
+                    is Comparison.SingleStore -> listOf(c.basket)
+                    is Comparison.NotEnoughData -> c.baskets
+                    is Comparison.Ranking -> c.ranked.map { it.basket }
+                    else -> emptyList()
+                }
+                if (baskets.any { it.usesWebPrices() }) item { WebPriceNotice() }
                 when (val c = ui.comparison) {
                     null -> item { Text("Calculando…", style = Type.secondary) }
                     Comparison.NoStores -> item { EmptyState("Añade tus tiendas", "Para comparar necesitas al menos dos tiendas habituales.") { PrimaryButton("Añadir tiendas", onStores) } }

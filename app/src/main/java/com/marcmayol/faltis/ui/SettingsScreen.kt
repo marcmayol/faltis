@@ -1,5 +1,6 @@
 package com.marcmayol.faltis.ui
 
+import com.marcmayol.faltis.core.WebCatalog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -54,7 +55,7 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
     val settings by vm.settings.collectAsState()
     val sampleCount by vm.sampleCount.collectAsState()
     var addChain by remember { mutableStateOf(false) }
-    var naming by remember { mutableStateOf<String?>(null) }
+    var postalDialog by remember { mutableStateOf(false) }
     var budgetDialog by remember { mutableStateOf(false) }
     var wipe by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -91,7 +92,7 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
                 androidx.compose.foundation.layout.Box {
                     SecondaryButton("Añadir tienda", { addChain = true }, Modifier.fillMaxWidth())
                     DropdownMenu(addChain, { addChain = false }) {
-                        Chains.all.forEach { c -> DropdownMenuItem(text = { Text(c.name) }, leadingIcon = { ChainChip(c.id, 26.dp) }, onClick = { addChain = false; naming = c.id }) }
+                        Chains.all.forEach { c -> DropdownMenuItem(text = { Text(c.name) }, leadingIcon = { ChainChip(c.id, 26.dp) }, onClick = { addChain = false; vm.addStore(c.id) }) }
                     }
                 }
             }
@@ -99,6 +100,26 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
             item {
                 SettingRow("Incluir promos y precios de socio", "Usa el precio con descuento si es de los últimos 7 días.") {
                     Switch(settings?.includePromos == true, vm::setPromos, colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
+                }
+            }
+            item {
+                val web = settings?.webPrices == true
+                val busy by vm.webBusy.collectAsState()
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).padding(bottom = if (web) 12.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SettingRow(
+                        "Precios web (Mercadona y Aldi)",
+                        "Antes de tu primer ticket, toma los precios de sus tiendas online. Usa internet; tus listas no salen del móvil.",
+                    ) {
+                        Switch(web, { on -> if (on && !WebCatalog.isPostalCode(settings?.postalCode ?: "")) postalDialog = true else vm.setWebPrices(on) },
+                            colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
+                    }
+                    if (web) {
+                        SettingRow("Código postal", (settings?.postalCode ?: "") + if (busy) " · actualizando…" else "", onClick = { postalDialog = true }) {}
+                        WebPriceNotice(Modifier.padding(horizontal = 12.dp))
+                    }
                 }
             }
             item {
@@ -133,14 +154,17 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
             item {
                 SettingRow(
                     if (BuildConfig.DEBUG) "Faltis ${BuildConfig.VERSION_NAME}" else "Privacidad y créditos",
-                    "Nombre provisional. Tus listas, tickets y precios no salen del móvil; internet solo se usa para buscar actualizaciones. " +
+                    "Nombre provisional. Tus listas, tickets y precios no salen del móvil; internet solo se usa para buscar actualizaciones y, si los activas, para leer los precios web. " +
                         "Sin analítica. Tipografías Archivo e IBM Plex Mono (SIL OFL). Partes de código abierto: ver NOTICE.",
                 ) {}
             }
         }
     }
-    naming?.let { chain ->
-        TextDialog("¿Qué ${Chains.byId(chain).name}?", "Pueblo o barrio", "", { naming = null }) { vm.addStore(chain, "${Chains.byId(chain).name} ${it.trim()}") }
+    if (postalDialog) TextDialog(
+        "Tu código postal", "Para los precios de tu zona (Aldi cambia en Baleares y Canarias)", settings?.postalCode ?: "", { postalDialog = false },
+    ) { cp ->
+        val code = cp.trim()
+        if (WebCatalog.isPostalCode(code)) vm.setWebPrices(true, code) else vm.say("«$code» no es un código postal")
     }
     if (budgetDialog) TextDialog("Presupuesto mensual", "Euros (0 para quitarlo)", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it, false) } ?: "", { budgetDialog = false }) { v ->
         vm.setBudget(((v.replace(".", "").replace(',', '.').toDoubleOrNull() ?: 0.0) * 100).roundToLong())

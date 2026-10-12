@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -35,7 +36,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 /** Un aviso con "Deshacer" opcional (T2). */
-data class UiMessage(val text: String, val undo: (suspend () -> Unit)? = null)
+data class UiMessage(val text: String, val undo: (suspend () -> Unit)? = null, val actionLabel: String = "Deshacer")
 
 /** Importacion de varios tickets a la vez: progreso y resumen. */
 data class BatchState(
@@ -73,7 +74,7 @@ data class ListUi(
     val comparison: Comparison?,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, kotlinx.coroutines.FlowPreview::class)
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repo = Repository(app)
     private val scope = viewModelScope
@@ -92,7 +93,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Todo lo que necesita la Lista y Comparar, recalculado cuando cambia algo. */
     val listUi: StateFlow<ListUi> = combine(settings, lists, activeNeeds, stores, priceBook) { s, ls, needs, st, book ->
         val list = ls.firstOrNull { it.id == s?.activeListId }
-        val store = st.firstOrNull { it.id == s?.selectedStoreId } ?: st.firstOrNull()
+        // La lista de un super se estima siempre en ese super.
+        val store = st.firstOrNull { it.id == list?.storeId } ?: st.firstOrNull { it.id == s?.selectedStoreId } ?: st.firstOrNull()
         if (book == null || s == null) return@combine ListUi(list, needs, store, null, null)
         val refs = with(repo) { needs.map { it.toRef() } }
         val storeRefs = with(repo) { st.map { it.toRef() } }
@@ -116,7 +118,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _draft = MutableStateFlow<TicketDraft?>(null)
     val draft: StateFlow<TicketDraft?> = _draft
 
-    fun say(text: String, undo: (suspend () -> Unit)? = null) { _messages.tryEmit(UiMessage(text, undo)) }
+    fun say(text: String, actionLabel: String = "Deshacer", undo: (suspend () -> Unit)? = null) { _messages.tryEmit(UiMessage(text, undo, actionLabel)) }
 
     fun run(block: suspend () -> Unit) { scope.launch { block() } }
 
@@ -135,6 +137,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val listId = repo.ensureActiveList()
         val notes = repo.addFromText(listId, text)
         notes.forEach { say(it) }
+    }
+
+    /** Añade a la lista de ese super (la crea si no existe) y lo dice, porque no es la que se ve. */
+    fun addTextToStore(storeId: Long, text: String) = run {
+        val store = stores.value.firstOrNull { it.id == storeId } ?: return@run
+        val list = repo.storeList(store)
+        val notes = repo.addFromText(list.id, text)
+        notes.forEach { say(it) }
+        if (list.id != settings.value?.activeListId) say("Añadido a «${list.name}»", "Ver lista") { repo.setActiveList(list.id) }
     }
 
     fun deleteNeed(n: NeedEntity) = run {
@@ -185,9 +196,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             lines = d.lines.map { ReviewedLine(repo.reassign(it.line, chainId), it.isItem) })
     }
 
-    fun createStoreForDraft(name: String) = run {
+    fun createStoreForDraft() = run {
         val d = _draft.value ?: return@run
-        val id = repo.addStore(d.chainId, name)
+        val id = repo.addStore(d.chainId, newStoreName(d.chainId, stores.value.map { it.name }))
         updateDraft { it.copy(storeId = id) }
     }
 
@@ -269,7 +280,45 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setPromos(v: Boolean) = run { repo.setIncludePromos(v) }
     fun setBudget(cents: Long) = run { repo.setBudget(cents) }
     fun setTheme(mode: com.marcmayol.faltis.ui.theme.ThemeMode) = run { repo.setTheme(mode) }
-    fun addStore(chain: String, name: String) = run { repo.addStore(chain, name) }
+
+    // ── Precios web ──
+    private val webLock = kotlinx.coroutines.sync.Mutex()
+    private val _webBusy = MutableStateFlow(false)
+    val webBusy: StateFlow<Boolean> = _webBusy
+
+    fun setWebPrices(on: Boolean, postalCode: String? = null) = run {
+        repo.setWebPrices(on, postalCode)
+        if (on) refreshWebPrices(force = true)
+    }
+
+    /** Con [force] (a mano) avisa del resultado; la automatica calla si falla la red. */
+    fun refreshWebPrices(force: Boolean = false) = run {
+        if (!webLock.tryLock()) return@run
+        _webBusy.value = true
+        try {
+            val open = activeNeeds.value.filter { it.state != NeedState.BOUGHT.name }
+            val n = repo.refreshWebPrices(open, force)
+            if (force) say(if (n > 0) "Precios web actualizados: $n" else "No hay precios web para esta lista")
+        } catch (e: Exception) {
+            if (force) say("No se han podido leer los precios web. ¿Hay conexión?")
+        } finally {
+            _webBusy.value = false
+            webLock.unlock()
+        }
+    }
+
+    init {
+        // Al añadir algo a la lista (o activar la opcion), se traen sus precios web si no son de hoy.
+        scope.launch {
+            combine(
+                repo.settings.map { it.webPrices to it.postalCode },
+                activeNeeds.map { needs -> needs.mapNotNull { it.typeId }.toSet() },
+            ) { web, types -> web.first && types.isNotEmpty() }
+                .debounce(1500)
+                .collect { if (it) refreshWebPrices() }
+        }
+    }
+    fun addStore(chain: String) = run { repo.addStore(chain, newStoreName(chain, stores.value.map { it.name })) }
     fun hideStore(s: StoreEntity) = run { repo.hideStore(s) }
     fun moveStore(s: StoreEntity, delta: Int) = run { repo.moveStore(s, delta) }
     fun deleteSample() = run { repo.deleteSample(); repo.ensureActiveList(); say("Datos de ejemplo borrados") }
@@ -281,4 +330,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openCount(): Int = activeNeeds.value.count { it.state != NeedState.BOUGHT.name }
+}
+
+/** Nombre de una tienda nueva: el de la cadena («Mercadona»); si ya esta, «Mercadona 2», «Mercadona 3»… */
+fun newStoreName(chainId: String, taken: Collection<String>): String {
+    val base = com.marcmayol.faltis.core.Chains.byId(chainId).name
+    return generateSequence(1) { it + 1 }.map { if (it == 1) base else "$base $it" }.first { it !in taken }
 }

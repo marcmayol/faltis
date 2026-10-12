@@ -1,4 +1,4 @@
-# Faltis (nombre provisional) · v0.2
+# Faltis (nombre provisional) · v0.3
 
 App Android de lista de la compra con lectura de tickets y comparador honesto de precios entre supermercados.
 El plan, las especificaciones y el diseño están en `C:\Users\marcm\Desktop\Cistella\`: `PLAN.md`, `SPECS.md`,
@@ -17,12 +17,17 @@ El plan, las especificaciones y el diseño están en `C:\Users\marcm\Desktop\Cis
   - `ProductMatcher`: port del matching de supermercapy (tamaños «6 x 1 l», EAN, marcas blancas, envases); validado con su dataset.
   - `Packs.fromText`: formato del envase leído del nombre.
   - `AisleLearner`: orden de pasillos (F-08).
+  - `WebCatalog`: lee las respuestas de las tiendas online de Mercadona y Aldi (precios web, capa D) y el aviso que los acompaña.
   - `SampleData`: datos de ejemplo ficticios y deterministas.
 - **`:app`**: Compose y Material 3, Room (v2), DataStore, ML Kit Text (en el APK) y PdfBox-Android.
   - Tema claro, oscuro y del sistema. Archivo e IBM Plex Mono (OFL) en `res/font`.
   - Importación de varios tickets a la vez (compartir varios PDF o «Importar varios tickets»).
+  - Listas de un súper concreto: en una lista general, al añadir algo pregunta a qué lista de qué súper va.
+  - Precios web (opcional, en Ajustes, con código postal): Mercadona y Aldi desde el propio móvil, guardados como
+    precio de la cadena con el sello «web» y un aviso (franquicias, región, ofertas locales). Un ticket de tu tienda siempre gana.
+    Lidl no: su web solo pone precio a lo que está en oferta.
 - **`:actualizador`**: auto-actualización fuera de Play Store (DracApps). Copia del módulo de Kuse vía Prompter; ver su README.
-  Es lo único que usa la red: el manifiesto `https://marcmayol.com/faltis/updates.json` y el APK de la Release.
+  Junto con los precios web (si se activan), es lo único que usa la red: el manifiesto `https://marcmayol.com/faltis/updates.json` y el APK de la Release.
   Solo actúa en la build release (la debug es otro paquete).
 
 Código y datos de terceros: ver `NOTICE.md`.

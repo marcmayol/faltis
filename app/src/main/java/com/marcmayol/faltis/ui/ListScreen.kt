@@ -1,5 +1,10 @@
 package com.marcmayol.faltis.ui
 
+import androidx.compose.material.icons.filled.Info
+import com.marcmayol.faltis.data.ListEntity
+import com.marcmayol.faltis.data.StoreEntity
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -92,6 +97,9 @@ fun ListScreen(
     var newListDialog by remember { mutableStateOf(false) }
     var renameDialog by remember { mutableStateOf(false) }
     var importDialog by remember { mutableStateOf(false) }
+    // Texto escrito en una lista general: se pregunta a que lista de que super va.
+    var pendingAdd by remember { mutableStateOf<String?>(null) }
+    val add: (String) -> Unit = { t -> if (ui.list?.storeId != null || stores.isEmpty()) vm.addText(t) else pendingAdd = t }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     HaloBackground {
@@ -99,6 +107,7 @@ fun ListScreen(
             ListHeader(
                 listName = ui.list?.name ?: "Compra",
                 lists = lists.map { it.id to it.name },
+                chainOfList = lists.mapNotNull { l -> stores.firstOrNull { it.id == l.storeId }?.let { l.id to it.chainId } }.toMap(),
                 onSelect = vm::selectList,
                 onNew = { newListDialog = true },
                 onRename = { renameDialog = true },
@@ -111,6 +120,7 @@ fun ListScreen(
                 },
                 onImport = { importDialog = true },
                 onTicket = onTicket,
+                onRefreshWeb = if (vm.settings.collectAsState().value?.webPrices == true) ({ vm.refreshWebPrices(force = true) }) else null,
             )
             LazyColumn(
                 Modifier.weight(1f),
@@ -132,7 +142,7 @@ fun ListScreen(
                         EmptyState("Tu lista está vacía", "Escribe abajo lo que te falta, separado por comas. O toca una sugerencia:") {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf("leche", "pan", "huevos", "tomates", "café").forEach { s ->
-                                    SecondaryButton(s, { vm.addText(s) })
+                                    SecondaryButton(s, { add(s) })
                                 }
                             }
                         }
@@ -147,7 +157,7 @@ fun ListScreen(
                     }
                 }
             }
-            AddBar(onAdd = vm::addText, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 8.dp))
+            AddBar(onAdd = add, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 8.dp))
         }
     }
 
@@ -156,19 +166,27 @@ fun ListScreen(
     }
     if (newListDialog) TextDialog("Nueva lista", "Nombre", "", { newListDialog = false }) { vm.newList(it) }
     if (renameDialog) ui.list?.let { l -> TextDialog("Renombrar lista", "Nombre", l.name, { renameDialog = false }) { vm.renameList(l, it) } }
-    if (importDialog) TextDialog("Importar texto", "Pega tu lista (una por línea o con comas)", "", { importDialog = false }, multiline = true) { vm.addText(it) }
+    if (importDialog) TextDialog("Importar texto", "Pega tu lista (una por línea o con comas)", "", { importDialog = false }, multiline = true) { add(it) }
+    pendingAdd?.let { text ->
+        AddWhereDialog(
+            text, stores, lists, ui.list,
+            onStore = { vm.addTextToStore(it, text) }, onHere = { vm.addText(text) }, onDismiss = { pendingAdd = null },
+        )
+    }
 }
 
 @Composable
 private fun ListHeader(
     listName: String,
     lists: List<Pair<Long, String>>,
+    chainOfList: Map<Long, String>,
     onSelect: (Long) -> Unit,
     onNew: () -> Unit,
     onRename: () -> Unit,
     onShare: () -> Unit,
     onImport: () -> Unit,
     onTicket: () -> Unit,
+    onRefreshWeb: (() -> Unit)?,
 ) {
     var listMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
@@ -181,7 +199,12 @@ private fun ListHeader(
                     Icon(Icons.Filled.ArrowDropDown, "Cambiar de lista")
                 }
                 DropdownMenu(listMenu, { listMenu = false }) {
-                    lists.forEach { (id, name) -> DropdownMenuItem(text = { Text(name) }, onClick = { onSelect(id); listMenu = false }) }
+                    lists.forEach { (id, name) ->
+                        DropdownMenuItem(
+                            text = { Text(name) }, onClick = { onSelect(id); listMenu = false },
+                            leadingIcon = chainOfList[id]?.let { chain -> { ChainChip(chain, 26.dp) } },
+                        )
+                    }
                     DropdownMenuItem(text = { Text("Nueva lista…") }, onClick = { onNew(); listMenu = false }, leadingIcon = { Icon(Icons.Filled.Add, null) })
                 }
             }
@@ -193,6 +216,7 @@ private fun ListHeader(
                 DropdownMenuItem(text = { Text("Renombrar lista") }, onClick = { moreMenu = false; onRename() })
                 DropdownMenuItem(text = { Text("Compartir como texto") }, onClick = { moreMenu = false; onShare() })
                 DropdownMenuItem(text = { Text("Importar texto") }, onClick = { moreMenu = false; onImport() })
+                onRefreshWeb?.let { DropdownMenuItem(text = { Text("Actualizar precios web") }, onClick = { moreMenu = false; it() }) }
             }
         }
     }
@@ -223,13 +247,13 @@ private fun TotalHero(
         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
                 Row(
-                    Modifier.clip(RoundedCornerShape(10.dp)).background(Faltis.Elevated).clickable { storeMenu = true }
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(Faltis.Elevated).clickable(enabled = ui.list?.storeId == null) { storeMenu = true }
                         .heightIn(min = 40.dp).padding(start = 4.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ChainChip(ui.store.chainId, 28.dp)
                     Text(ui.store.name, style = Type.row.copy(fontSize = 14.sp), maxLines = 1)
-                    Icon(Icons.Filled.ArrowDropDown, "Cambiar de tienda", Modifier.size(18.dp))
+                    if (ui.list?.storeId == null) Icon(Icons.Filled.ArrowDropDown, "Cambiar de tienda", Modifier.size(18.dp))
                 }
                 DropdownMenu(storeMenu, { storeMenu = false }) {
                     stores.forEach { (id, name) ->
@@ -256,6 +280,7 @@ private fun TotalHero(
             }
             CoverageRing(basket?.pricedCount ?: 0, basket?.comparableCount ?: 0)
         }
+        if (basket?.usesWebPrices() == true) WebPriceNotice(Modifier.padding(top = 10.dp))
         // Mejor alternativa (sobre los articulos comunes) -> Comparar.
         val c = ui.comparison
         val alt = (c as? Comparison.Ranking)?.let { r ->
@@ -362,9 +387,10 @@ fun sealText(p: PricedNeed): String {
         PriceSource.TICKET_PHOTO -> "ticket"
         PriceSource.MANUAL -> "manual"
         PriceSource.COMMUNITY -> "comunidad"
+        PriceSource.WEB -> "web"
         PriceSource.SAMPLE -> "ejemplo"
     }
-    val where = if (p.fromChainLevel) "cadena" else src
+    val where = if (p.fromChainLevel && p.obs.source != PriceSource.WEB) "cadena" else src
     return if (p.obs.source == PriceSource.SAMPLE) "ejemplo · ${ageText(p.ageDays)}" else "$where · ${ageText(p.ageDays)}"
 }
 
@@ -474,6 +500,52 @@ fun SelectPill(text: String, selected: Boolean, onClick: () -> Unit) {
     ) { Text(text, style = Type.row.copy(fontSize = 14.sp, fontWeight = if (selected) FontWeight.W700 else FontWeight.W500)) }
 }
 
+/** «¿A qué lista lo añado?»: la de cada super (se crea al elegirla si no existe) o la general que se ve. */
+@Composable
+private fun AddWhereDialog(
+    text: String,
+    stores: List<StoreEntity>,
+    lists: List<ListEntity>,
+    current: ListEntity?,
+    onStore: (Long) -> Unit,
+    onHere: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Faltis.Surface,
+        title = { Text("¿A qué lista lo añado?", style = Type.title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("«$text»", style = Type.secondary, maxLines = 2)
+                Spacer(Modifier.height(6.dp))
+                stores.forEach { st ->
+                    val list = lists.firstOrNull { it.storeId == st.id }
+                    WhereRow(list?.name ?: st.name, if (list == null) "Lista nueva" else null, { ChainChip(st.chainId, 30.dp) }) { onStore(st.id); onDismiss() }
+                }
+                if (current != null) WhereRow(current.name, "Lista general, sin súper", null) { onHere(); onDismiss() }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onDismiss) { Text("Cancelar") } },
+    )
+}
+
+@Composable
+private fun WhereRow(title: String, subtitle: String?, icon: (@Composable () -> Unit)?, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Faltis.Elevated).clickable(onClick = onClick)
+            .heightIn(min = 52.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        icon?.invoke()
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Type.row, maxLines = 1)
+            subtitle?.let { Text(it, style = Type.secondary.copy(fontSize = 12.sp)) }
+        }
+    }
+}
+
 @Composable
 fun TextDialog(title: String, label: String, initial: String, onDismiss: () -> Unit, multiline: Boolean = false, onOk: (String) -> Unit) {
     var value by remember { mutableStateOf(initial) }
@@ -491,4 +563,21 @@ fun TextDialog(title: String, label: String, initial: String, onDismiss: () -> U
         confirmButton = { TextButton({ onOk(value); onDismiss() }, enabled = value.isNotBlank()) { Text("Aceptar") } },
         dismissButton = { TextButton(onDismiss) { Text("Cancelar") } },
     )
+}
+
+/** ¿Algun precio de la cesta sale de la web de la cadena? */
+fun com.marcmayol.faltis.core.StoreBasket.usesWebPrices(): Boolean =
+    results.any { it is NeedPriceResult.Priced && it.value.obs.source == PriceSource.WEB }
+
+/** El aviso de los precios web: pueden no ser los de tu tienda. */
+@Composable
+fun WebPriceNotice(modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Faltis.Warn.copy(alpha = 0.10f))
+            .border(1.dp, Faltis.Warn.copy(alpha = 0.30f), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Filled.Info, null, tint = Faltis.Warn, modifier = Modifier.size(18.dp).padding(top = 1.dp))
+        Text(com.marcmayol.faltis.core.WebCatalog.DISCLAIMER, style = Type.secondary.copy(fontSize = 12.sp, lineHeight = 16.sp))
+    }
 }
