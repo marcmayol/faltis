@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "0.3.1",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.1/faltis-v0.3.1.apk",
-  "sha256": "5d3a7e9430dfc073e4de412c2edc6cfad91fe8fdc3cc7e7319705a288ec502b6",
-  "notas": "Arreglos: el aviso «Añadido a…» ya no se queda a media pantalla con el teclado abierto; el código postal se escribe con teclado numérico y los diálogos se leen bien con letra grande; el texto de Actualizaciones ya cuenta que los precios web también usan internet.",
+  "versionCode": 6,
+  "versionName": "0.3.2",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.3.2/faltis-v0.3.2.apk",
+  "sha256": "8b7ef3d159ee57894b8134a12ac2ef238fe78be3c9af034934746aa1606dcdd6",
+  "notas": "Arreglos para móviles pequeños y letra grande: la bienvenida ya deja empezar siempre, la búsqueda de tiendas no queda tapada por el teclado, Atrás vuelve al paso anterior sin perder lo elegido y los nombres de las tiendas se leen enteros.",
   "check_horas": 24
 }
