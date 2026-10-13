@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Vuelta de la pantalla de "instalar apps desconocidas": reanuda la actualizacion.
         if (!BuildConfig.DEBUG) actualizador.onPermisoQuizaConcedido()
+        vm.sendSharedPrices()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
@@ -174,6 +175,8 @@ private fun Root(vm: AppViewModel) {
             }
         }
     }
+    val shareNotice by vm.shareNotice.collectAsState()
+    if (shareNotice) com.marcmayol.faltis.ui.ShareNoticeDialog(vm::answerShareNotice)
 }
 
 @Composable

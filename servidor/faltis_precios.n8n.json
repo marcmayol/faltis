@@ -1,0 +1,168 @@
+{
+ "name": "faltis precios compartidos",
+ "nodes": [
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "faltis-precios",
+    "responseMode": "lastNode",
+    "options": {
+     "rawBody": false
+    }
+   },
+   "name": "Recibir",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    0
+   ],
+   "webhookId": "faltis-precios"
+  },
+  {
+   "parameters": {
+    "jsCode": "// Faltis · recibir precios compartidos (PLAN §3.3).\n// Valida cada línea y la deja en el búfer; no guarda nada del que envía.\nconst CHAINS = new Set([\"mercadona\",\"carrefour\",\"alcampo\",\"eroski\",\"lidl\",\"dia\",\"aldi\",\"consum\",\"hipercentro\",\"agromart\",\"spar\",\"suma\",\"ifa\",\"ahorramas\",\"elcorteingles\",\"bm\",\"caprabo\",\"condis\",\"bonpreu\",\"gadis\",\"froiz\",\"masymas\",\"hiperdino\",\"coviran\",\"familycash\",\"bonarea\",\"alimerka\",\"supeco\",\"vidal\",\"sorli\",\"eljamon\"]);\nconst KINDS = new Set([\"REGULAR\", \"PROMO\", \"MEMBER\"]);\nconst PERSONAL = /\\d{5,}|\\b(TARJETA|VISA|MASTERCARD|MAESTRO|CLIENTE|SOCIO|NIF|CIF|DNI|TELF?|TELEFONO|CAJERO|CAJERA|OPERADOR|IBAN|CUENTA|PUNTOS|CUPON|TOTAL|CAMBIO|EFECTIVO|IVA|FACTURA|TICKET)\\b|\\b(ATENDID|ENTREGAD|AUTORIZ)/;\nconst MAX_LINES = 200, MAX_BUFFER = 20000, DAY = 86400000;\n\nconst body = $input.first().json.body || {};\nif (body.v !== 1 || !Array.isArray(body.lines) || body.lines.length === 0 || body.lines.length > MAX_LINES) {\n  return [{ json: { ok: false, error: \"formato\" } }];\n}\n\nconst today = Date.now();\nconst valid = (l) => l && typeof l === \"object\"\n  && CHAINS.has(l.chain)\n  && typeof l.cp === \"string\" && /^(\\d{5})?$/.test(l.cp)\n  && typeof l.text === \"string\" && /^[A-Z0-9.,\\/ ]{3,60}$/.test(l.text) && (l.text.match(/[A-Z]/g) || []).length >= 3 && !PERSONAL.test(l.text)\n  && Number.isInteger(l.price) && l.price >= 1 && l.price <= 50000\n  && (l.unit === \"ud\" || l.unit === \"kg\")\n  && KINDS.has(l.kind)\n  && typeof l.day === \"string\" && /^\\d{4}-\\d{2}-\\d{2}$/.test(l.day)\n  && (() => { const t = Date.parse(l.day + \"T12:00:00Z\"); return t <= today + DAY && t >= today - 60 * DAY; })();\n\nconst seen = new Set();\nconst lines = [];\nfor (const l of body.lines) {\n  if (!valid(l)) continue;\n  // Solo los campos conocidos: lo que sobre en la petición no se guarda.\n  const clean = { chain: l.chain, cp: l.cp, text: l.text, price: l.price, unit: l.unit, kind: l.kind, day: l.day };\n  const key = JSON.stringify(clean);\n  if (seen.has(key)) continue;\n  seen.add(key);\n  lines.push(clean);\n}\n\nconst data = $getWorkflowStaticData(\"global\");\ndata.buffer = data.buffer || [];\nconst room = Math.max(0, MAX_BUFFER - data.buffer.length);\ndata.buffer.push(...lines.slice(0, room));\nreturn [{ json: { ok: true, accepted: Math.min(lines.length, room) } }];\n"
+   },
+   "name": "Validar y guardar en búfer",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    240,
+    0
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "hours",
+       "hoursInterval": 1
+      }
+     ]
+    }
+   },
+   "name": "Cada hora",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    0,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Faltis · volcar el búfer a Notion barajado, para que las líneas de un mismo\n// ticket no queden juntas ni con la misma hora de creación.\nconst BATCH = 600;\nconst data = $getWorkflowStaticData(\"global\");\nconst buffer = data.buffer || [];\nif (buffer.length === 0) return [];\nfor (let i = buffer.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [buffer[i], buffer[j]] = [buffer[j], buffer[i]];\n}\nconst out = buffer.splice(0, BATCH);\ndata.buffer = buffer;\nreturn out.map((l) => ({ json: { ...l, euros: l.price / 100 } }));\n"
+   },
+   "name": "Sacar del búfer barajado",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    240,
+    240
+   ]
+  },
+  {
+   "parameters": {
+    "resource": "databasePage",
+    "databaseId": {
+     "__rl": true,
+     "value": "233454267aae4607bb120129758dbed7",
+     "mode": "id"
+    },
+    "title": "={{ $json.text }}",
+    "propertiesUi": {
+     "propertyValues": [
+      {
+       "key": "Cadena|select",
+       "selectValue": "={{ $json.chain }}"
+      },
+      {
+       "key": "CP|rich_text",
+       "textContent": "={{ $json.cp }}"
+      },
+      {
+       "key": "Precio|number",
+       "numberValue": "={{ $json.euros }}"
+      },
+      {
+       "key": "Unidad|select",
+       "selectValue": "={{ $json.unit }}"
+      },
+      {
+       "key": "Tipo|select",
+       "selectValue": "={{ $json.kind }}"
+      },
+      {
+       "key": "Día|date",
+       "date": "={{ $json.day }}",
+       "includeTime": false
+      },
+      {
+       "key": "Estado|select",
+       "selectValue": "nuevo"
+      },
+      {
+       "key": "Formato|number",
+       "numberValue": 1
+      }
+     ]
+    },
+    "options": {}
+   },
+   "name": "Guardar en Notion",
+   "type": "n8n-nodes-base.notion",
+   "typeVersion": 2.2,
+   "position": [
+    480,
+    240
+   ],
+   "retryOnFail": true,
+   "maxTries": 3,
+   "waitBetweenTries": 2000
+  }
+ ],
+ "connections": {
+  "Recibir": {
+   "main": [
+    [
+     {
+      "node": "Validar y guardar en búfer",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cada hora": {
+   "main": [
+    [
+     {
+      "node": "Sacar del búfer barajado",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Sacar del búfer barajado": {
+   "main": [
+    [
+     {
+      "node": "Guardar en Notion",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataSuccessExecution": "none",
+  "saveDataErrorExecution": "none",
+  "saveManualExecutions": false,
+  "saveExecutionProgress": false,
+  "timezone": "Europe/Madrid"
+ }
+}

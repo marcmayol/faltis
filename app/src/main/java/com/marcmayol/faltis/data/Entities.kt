@@ -127,3 +127,22 @@ data class AbbreviationEntity(
     val typeId: String? = null,
     val confirmations: Int = 1,
 )
+
+/**
+ * Cola de lineas de ticket para compartir (PLAN §3.3). [purchaseId] solo vive
+ * en el movil, para quitar las lineas si se borra el ticket; nunca se envia.
+ */
+@Entity(tableName = "share_line", indices = [Index("purchaseId")])
+data class ShareLineEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val purchaseId: Long,
+    val chainId: String,
+    val postalCode: String,
+    val text: String,
+    val priceCents: Long,
+    val unit: String,
+    val kind: String,
+    /** Dia del ticket en formato ISO (2026-10-12). */
+    val day: String,
+    val createdAtMillis: Long,
+)

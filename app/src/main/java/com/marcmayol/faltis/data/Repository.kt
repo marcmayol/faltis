@@ -17,6 +17,7 @@ import com.marcmayol.faltis.core.NeedRef
 import com.marcmayol.faltis.core.NeedState
 import com.marcmayol.faltis.core.ParsedTicket
 import com.marcmayol.faltis.core.Packs
+import com.marcmayol.faltis.core.SharedPrices
 import com.marcmayol.faltis.core.PriceBook
 import com.marcmayol.faltis.core.ProductMatcher
 import com.marcmayol.faltis.core.PriceKind
@@ -61,6 +62,10 @@ data class Settings(
     val postalCode: String = "",
     /** Zona de precios de cada cadena para [postalCode] (almacen, tienda, region), ya resuelta. */
     val webZones: Map<String, String> = emptyMap(),
+    /** Capa C (PLAN §3.3): compartir los precios de los tickets, sin datos personales. Activado de serie. */
+    val sharePrices: Boolean = true,
+    /** Ya se ha explicado lo que se comparte (sale con el primer ticket). */
+    val shareNoticeShown: Boolean = false,
 )
 
 @Serializable
@@ -79,12 +84,21 @@ data class ReconcileProposal(
     val outsideList: List<TicketLine>,
 )
 
+/**
+ * Webhook de n8n en el VPS que recibe los precios compartidos (servidor/ en el repo).
+ * La version de pruebas usa la URL de prueba de n8n, que solo escucha con el editor
+ * abierto: asi los tickets de prueba nunca llegan a la base de precios real.
+ */
+private val SHARE_URL = "https://vps24874.cubepath.net/" +
+    (if (com.marcmayol.faltis.BuildConfig.DEBUG) "webhook-test" else "webhook") + "/faltis-precios"
+private const val SHARE_DELAY_MILLIS = 60 * 60 * 1000L
+
 class Repository(private val context: Context) {
     val taxonomy: Taxonomy = Taxonomy.bundled()
     val textParser = FreeTextParser(taxonomy)
     val ticketParser = TicketParser(taxonomy)
 
-    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3).build()
+    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3, FaltisDb.MIGRATION_3_4).build()
     val dao = db.dao()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -100,6 +114,8 @@ class Repository(private val context: Context) {
         val postalCode = androidx.datastore.preferences.core.stringPreferencesKey("postal_code")
         val mercadonaWh = androidx.datastore.preferences.core.stringPreferencesKey("mercadona_wh")
         val webZones = androidx.datastore.preferences.core.stringPreferencesKey("web_zones")
+        val sharePrices = booleanPreferencesKey("share_prices")
+        val shareNotice = booleanPreferencesKey("share_notice_shown")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p: Preferences ->
@@ -114,6 +130,8 @@ class Repository(private val context: Context) {
             postalCode = p[K.postalCode] ?: "",
             // El almacen de Mercadona se guardaba aparte hasta la 0.4.
             webZones = decodeZones(p[K.webZones]) + listOfNotNull(p[K.mercadonaWh]?.takeIf { it.isNotBlank() }?.let { "mercadona" to it }),
+            sharePrices = p[K.sharePrices] ?: true,
+            shareNoticeShown = p[K.shareNotice] ?: false,
         )
     }
 
@@ -126,6 +144,53 @@ class Repository(private val context: Context) {
     suspend fun setWebPrices(on: Boolean, postalCode: String? = null) = context.dataStore.edit {
         it[K.webPrices] = on
         if (postalCode != null && postalCode != it[K.postalCode]) { it[K.postalCode] = postalCode; it.remove(K.mercadonaWh); it.remove(K.webZones) }
+    }
+
+    /** Al desactivarlo se vacia la cola: lo que no se ha enviado ya no se envia. */
+    suspend fun setSharePrices(on: Boolean) {
+        context.dataStore.edit { it[K.sharePrices] = on; it[K.shareNotice] = true }
+        if (!on) dao.clearShareLines()
+    }
+    suspend fun setShareNoticeShown() = context.dataStore.edit { it[K.shareNotice] = true }
+
+    /**
+     * Envia la cola de precios compartidos. Solo salen las lineas con mas de
+     * [SHARE_DELAY_MILLIS], para que no lleguen al servidor justo tras la compra;
+     * van en orden aleatorio y mezcladas con las de otros tickets si los hay.
+     * Devuelve las enviadas; si falla la red, se quedan para la proxima vez.
+     */
+    suspend fun sendSharedPrices(): Int {
+        if (!settings.first().sharePrices) return 0
+        var sent = 0
+        while (true) {
+            val batch = dao.shareLinesReady(now() - SHARE_DELAY_MILLIS, SharedPrices.MAX_PER_REQUEST)
+            if (batch.isEmpty()) return sent
+            val body = SharedPrices.payload(batch.map {
+                com.marcmayol.faltis.core.SharedLine(
+                    it.chainId, it.postalCode, it.text, it.priceCents, it.unit, PriceKind.valueOf(it.kind), LocalDate.parse(it.day),
+                )
+            })
+            postShared(body)
+            dao.deleteShareLines(batch.map { it.id })
+            sent += batch.size
+            if (batch.size < SharedPrices.MAX_PER_REQUEST) return sent
+        }
+    }
+
+    private suspend fun postShared(body: String) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val c = (java.net.URL(SHARE_URL).openConnection() as java.net.HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 15_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+        }
+        try {
+            c.outputStream.use { it.write(body.toByteArray()) }
+            if (c.responseCode !in 200..299) error("HTTP ${c.responseCode}")
+            // El webhook contesta {"ok":false} si el formato no le vale: no se reintenta, se descarta.
+            c.inputStream.bufferedReader().use { it.readText() }
+        } finally { c.disconnect() }
     }
 
     private suspend fun saveZone(chain: String, zone: String) = context.dataStore.edit {
@@ -387,6 +452,15 @@ class Repository(private val context: Context) {
             )
         }
         dao.insertLines(lineEntities)
+        // Precios para compartir (PLAN §3.3): la cola solo guarda lo que se enviaria.
+        val s = settings.first()
+        val shared = if (s.sharePrices) SharedPrices.fromTicket(chainId, s.postalCode, date, items) else emptyList()
+        if (shared.isNotEmpty()) dao.insertShareLines(shared.map {
+            ShareLineEntity(
+                purchaseId = pid, chainId = it.chainId, postalCode = it.postalCode, text = it.text, priceCents = it.priceCents,
+                unit = it.unit, kind = it.kind.name, day = it.day.toString(), createdAtMillis = now(),
+            )
+        })
         // Cuadre con la lista, guardando el estado anterior para poder revertirlo.
         val snapshot = needsToBuy.map { NeedSnapshot(it.id, it.state, it.purchaseId, it.cartOrder) }
         dao.updateNeeds(needsToBuy.map { it.copy(state = NeedState.BOUGHT.name, purchaseId = pid, updatedAtMillis = now()) })
@@ -411,6 +485,7 @@ class Repository(private val context: Context) {
         dao.reopenNeedsOf(purchaseId)
         dao.deleteObsOfPurchase(purchaseId)
         dao.deleteLines(purchaseId)
+        dao.deleteShareLinesOf(purchaseId)
         dao.deletePurchase(purchaseId)
     }
 

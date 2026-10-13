@@ -103,14 +103,23 @@ interface FaltisDao {
     @Query("DELETE FROM shopping_list WHERE isSample = 1") suspend fun deleteSampleLists()
     @Query("DELETE FROM store WHERE isSample = 1 AND id NOT IN (SELECT storeId FROM purchase WHERE storeId IS NOT NULL)") suspend fun deleteSampleStores()
     @Query("SELECT COUNT(*) FROM product WHERE isSample = 1") fun sampleCount(): Flow<Int>
+
+    // Cola de precios compartidos
+    @Insert suspend fun insertShareLines(lines: List<ShareLineEntity>)
+    @Query("SELECT * FROM share_line WHERE createdAtMillis <= :before ORDER BY RANDOM() LIMIT :limit") suspend fun shareLinesReady(before: Long, limit: Int): List<ShareLineEntity>
+    @Query("DELETE FROM share_line WHERE id IN (:ids)") suspend fun deleteShareLines(ids: List<Long>)
+    @Query("DELETE FROM share_line WHERE purchaseId = :purchaseId") suspend fun deleteShareLinesOf(purchaseId: Long)
+    @Query("DELETE FROM share_line") suspend fun clearShareLines()
+    @Query("SELECT COUNT(*) FROM share_line") fun shareLineCount(): Flow<Int>
 }
 
 @Database(
     entities = [
         StoreEntity::class, ProductEntity::class, PriceObsEntity::class, ListEntity::class, NeedEntity::class,
         AisleOrderEntity::class, PurchaseEntity::class, PurchaseLineEntity::class, AbbreviationEntity::class,
+        ShareLineEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class FaltisDb : RoomDatabase() {
@@ -129,6 +138,18 @@ abstract class FaltisDb : RoomDatabase() {
         val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE shopping_list ADD COLUMN storeId INTEGER")
+            }
+        }
+
+        /** v4: cola de precios compartidos. */
+        val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `share_line` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `purchaseId` INTEGER NOT NULL, " +
+                        "`chainId` TEXT NOT NULL, `postalCode` TEXT NOT NULL, `text` TEXT NOT NULL, `priceCents` INTEGER NOT NULL, `unit` TEXT NOT NULL, " +
+                        "`kind` TEXT NOT NULL, `day` TEXT NOT NULL, `createdAtMillis` INTEGER NOT NULL)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_share_line_purchaseId` ON `share_line` (`purchaseId`)")
             }
         }
     }

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
@@ -227,6 +228,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val toBuy = d.proposal?.let { p -> (p.toBuy + p.stillPending).filter { it.id in d.selectedToBuy } }.orEmpty()
         val pid = repo.saveTicket(storeId, d.chainId, d.date, d.parsed.totalCents, d.source, d.lines, toBuy, listId, d.parsed.invoice, d.parsed.time)
         say("Compra guardada · ${toBuy.size} de la lista marcados") { repo.revertReconcile(pid) }
+        askShareNotice()
         // Navegar ANTES de vaciar el borrador: si no, la pantalla de cuadre ve el borrador nulo y hace "volver".
         onSaved(pid)
         kotlinx.coroutines.delay(400)
@@ -278,6 +280,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _batch.value = st
         }
         _batch.value = st.copy(finished = true)
+        if (st.imported > 0) askShareNotice()
     }
 
     fun clearBatch() { _batch.value = null }
@@ -290,6 +293,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setPromos(v: Boolean) = run { repo.setIncludePromos(v) }
     fun setBudget(cents: Long) = run { repo.setBudget(cents) }
     fun setTheme(mode: com.marcmayol.faltis.ui.theme.ThemeMode) = run { repo.setTheme(mode) }
+
+    // ── Precios compartidos (PLAN §3.3) ──
+    /** Explicar lo que se comparte: sale una vez, tras guardar el primer ticket. */
+    val shareNotice = MutableStateFlow(false)
+
+    private suspend fun askShareNotice() {
+        val s = repo.settings.first()
+        if (s.sharePrices && !s.shareNoticeShown) shareNotice.value = true
+    }
+
+    fun answerShareNotice(keepSharing: Boolean) = run {
+        shareNotice.value = false
+        if (keepSharing) repo.setShareNoticeShown() else { repo.setSharePrices(false); say("No se compartirán tus precios") }
+    }
+
+    fun setSharePrices(on: Boolean) = run { repo.setSharePrices(on) }
+
+    /** Sin conexion no pasa nada: la cola espera a la proxima vez que se abra la app. */
+    fun sendSharedPrices() = run {
+        runCatching { repo.sendSharedPrices() }
+            .onSuccess { if (it > 0) android.util.Log.i("Faltis", "Precios compartidos: $it") }
+            .onFailure { android.util.Log.i("Faltis", "Precios compartidos pendientes: ${it.message}") }
+    }
 
     // ── Precios web ──
     private val webLock = kotlinx.coroutines.sync.Mutex()

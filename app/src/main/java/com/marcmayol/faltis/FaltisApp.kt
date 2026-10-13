@@ -8,7 +8,8 @@ class FaltisApp : Application() {
     /**
      * Faltis se distribuye fuera de Play Store (DracApps): consulta un manifiesto estatico en
      * GitHub Pages y compara por versionCode entero. Mismo modulo que Kuse y Prompter.
-     * Es lo unico que usa la red: los tickets, la lista y los precios nunca salen del movil.
+     * La red se usa tambien para los precios web (opcionales) y los precios compartidos
+     * de los tickets (Repository.sendSharedPrices); la lista y los tickets enteros nunca salen.
      */
     val actualizador: Actualizador by lazy {
         Actualizador(

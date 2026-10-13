@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -63,6 +64,7 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
     var wipe by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<com.marcmayol.faltis.data.StoreEntity?>(null) }
     val context = LocalContext.current
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
@@ -130,6 +132,11 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
                 }
             }
             item {
+                SettingRow("Compartir precios de los tickets", SHARE_SUMMARY) {
+                    Switch(settings?.sharePrices != false, vm::setSharePrices, colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
+                }
+            }
+            item {
                 SettingRow("Presupuesto mensual", settings?.budgetCents?.takeIf { it > 0 }?.let { euros(it) } ?: "Sin presupuesto", onClick = { budgetDialog = true }) {}
             }
             item { SectionLabel("Apariencia", Modifier.padding(start = 4.dp, top = 10.dp)) }
@@ -161,8 +168,10 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
             item {
                 SettingRow(
                     if (BuildConfig.DEBUG) "Faltis ${BuildConfig.VERSION_NAME}" else "Privacidad y créditos",
-                    "Nombre provisional. Tus listas, tickets y precios no salen del móvil; internet solo se usa para buscar actualizaciones y, si los activas, para leer los precios web. " +
-                        "Sin analítica. Tipografías Archivo e IBM Plex Mono (SIL OFL). Partes de código abierto: ver NOTICE.",
+                    "Nombre provisional. Tus listas y tus tickets no salen del móvil. Internet se usa para buscar actualizaciones, para leer los precios web si los activas " +
+                        "y para compartir los precios de tus tickets, línea a línea y sin nada que te identifique, salvo que lo desactives. " +
+                        "Sin analítica. Tipografías Archivo e IBM Plex Mono (SIL OFL). Partes de código abierto: ver NOTICE. Toca para leer la política de privacidad.",
+                    onClick = { uri.openUri(PRIVACY_URL) },
                 ) {}
             }
         }
@@ -208,4 +217,31 @@ private fun SettingRow(title: String, subtitle: String?, onClick: (() -> Unit)? 
         }
         trailing()
     }
+}
+
+private const val PRIVACY_URL = "https://marcmayol.com/faltis/privacidad.html"
+
+private const val SHARE_SUMMARY =
+    "Envía el producto, el precio, la cadena, el día y tu código postal de cada línea, por separado. " +
+        "Nada que te identifique: ni tu nombre, ni el móvil, ni el ticket entero. Sirve para que todos vean el precio real de las tiendas."
+
+/** Sale una vez, tras guardar el primer ticket (PLAN §3.3): explica lo que se comparte y deja quitarlo. */
+@Composable
+fun ShareNoticeDialog(onAnswer: (keepSharing: Boolean) -> Unit) {
+    AlertDialog(
+        onDismissRequest = { onAnswer(true) }, containerColor = Faltis.Surface,
+        title = { Text("Tus precios ayudan a los demás", style = Type.title) },
+        text = {
+            Text(
+                "Faltis comparte los precios de tus tickets para que todos vean lo que cuesta cada cosa en cada tienda. " +
+                    "Va línea a línea, sin tu nombre ni nada del móvil, y nunca tu lista ni el ticket entero.\n\n" +
+                    "Puedes cambiarlo cuando quieras en Ajustes.",
+                style = Type.body,
+                // Con letra grande en un movil pequeno no cabe: que se pueda desplazar.
+                modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+            )
+        },
+        confirmButton = { TextButton({ onAnswer(true) }) { Text("De acuerdo") } },
+        dismissButton = { TextButton({ onAnswer(false) }) { Text("No compartir") } },
+    )
 }

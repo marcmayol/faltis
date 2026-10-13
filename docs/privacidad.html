@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacidad · Faltis</title>
+  <meta name="description" content="Política de privacidad de Faltis: tus listas y tus tickets se quedan en el móvil; solo se comparten, si no lo desactivas, los precios de las líneas de tus tickets, sueltos y sin nada que te identifique." />
+  <style>
+    :root { --bg: #07080c; --card: #12141c; --ink: #eef0f6; --muted: #9aa0b4; --accent: #5b7cff; --saving: #2ad4c4; --line: #23263a; }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f4f5f9; --card: #ffffff; --ink: #11131c; --muted: #5b6075; --accent: #2f52d8; --saving: #00737a; --line: #dfe2ec; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.6; }
+    .envoltorio { max-width: 46rem; margin: 0 auto; padding: 4rem 1rem 5rem; }
+    .marca { display: flex; align-items: center; gap: .6rem; margin-bottom: 2.5rem; font-weight: 800; font-size: 1.5rem; }
+    .marca a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: .6rem; }
+    .marca i { width: 14px; height: 14px; background: linear-gradient(135deg, var(--accent), var(--saving)); border-radius: 4px; display: inline-block; }
+    h1 { font-size: clamp(2rem, 6vw, 2.6rem); line-height: 1.15; margin: 0 0 .4rem; letter-spacing: -.02em; }
+    .fecha { color: var(--muted); margin: 0 0 2rem; font-size: .95rem; }
+    h2 { font-size: 1.15rem; margin: 2.2rem 0 .5rem; }
+    p, li { color: var(--ink); }
+    ul { padding-left: 1.2em; }
+    li { margin: .35rem 0; }
+    .tarjeta { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1.2rem 1.4rem; margin: 1.2rem 0; }
+    .tarjeta p { margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin: .8rem 0; font-size: .95rem; }
+    th, td { text-align: left; padding: .55rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .9em; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: .05rem .35rem; overflow-wrap: anywhere; }
+    a { color: var(--accent); }
+    footer { margin-top: 3rem; color: var(--muted); font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="envoltorio">
+    <div class="marca"><a href="./"><i></i>Faltis</a></div>
+    <h1>Privacidad</h1>
+    <p class="fecha">Actualizada el 13 de octubre de 2026 · válida desde la versión 0.6.0</p>
+
+    <div class="tarjeta">
+      <p>
+        <strong>Tus listas, tus tiendas y tus tickets se quedan en tu móvil.</strong>
+        Faltis no tiene cuentas, ni anuncios, ni analítica. Lo único que sale del móvil
+        sin que lo pidas son los <strong>precios de las líneas de tus tickets</strong>,
+        sueltos y sin nada que te identifique, para que todos podamos ver lo que cuesta cada cosa en cada tienda.
+        Se puede desactivar en Ajustes.
+      </p>
+    </div>
+
+    <h2>Qué se queda en el móvil</h2>
+    <p>
+      Las listas, las tiendas que eliges, los precios, las compras y el texto de los tickets se guardan
+      en el almacenamiento privado de la app. La foto o el PDF del ticket se leen en el propio teléfono
+      (el reconocimiento de texto funciona sin conexión) y no se guardan: solo se queda el texto ya leído.
+      No hay copia en la nube.
+    </p>
+
+    <h2>Qué sale del móvil y a dónde</h2>
+    <table>
+      <thead><tr><th>Para qué</th><th>Qué se envía</th><th>A dónde</th><th>¿Se puede quitar?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Compartir precios</td>
+          <td>Por cada línea de ticket: cadena, texto de la línea, precio, si es por unidad o por kilo, si era oferta, día de la compra y tu código postal si lo has puesto.</td>
+          <td>Mi servidor (ver abajo)</td>
+          <td>Sí, en Ajustes. Activado de serie.</td>
+        </tr>
+        <tr>
+          <td>Precios web</td>
+          <td>Lo que buscas (por ejemplo «leche entera») y tu código postal, para saber la zona de precios.</td>
+          <td>Las webs de las cadenas que tienes en tu lista</td>
+          <td>Sí. Desactivado de serie.</td>
+        </tr>
+        <tr>
+          <td>Actualizaciones</td>
+          <td>Una petición al día para leer el número de la última versión. No lleva ningún dato tuyo.</td>
+          <td><code>marcmayol.com/faltis/updates.json</code> (GitHub Pages)</td>
+          <td>Sí, en Ajustes → Actualizaciones.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Como en cualquier conexión a internet, el servidor que recibe la petición ve la dirección IP desde la que llega.
+    </p>
+
+    <h2>Los precios compartidos, en detalle</h2>
+    <p>
+      Los precios de la tienda física solo salen de los tickets, así que Faltis comparte los de los tuyos
+      para que todos los usuarios los vean. Se ha hecho así para que no puedan llevar a ti:
+    </p>
+    <ul>
+      <li><strong>Cada línea va suelta.</strong> No lleva identificador de usuario, de móvil, de instalación ni de ticket, y no hay forma de saber qué líneas venían del mismo ticket.</li>
+      <li><strong>Sin hora.</strong> Solo el día de la compra. Además, las líneas no salen hasta pasada al menos una hora, en orden aleatorio, y el servidor las vuelve a barajar antes de guardarlas.</li>
+      <li><strong>Sin datos del ticket que no sean productos.</strong> La app descarta las líneas de total, pago, tarjeta, IVA, cajero, cliente, socio, teléfonos, NIF y cualquier número largo, y el servidor vuelve a filtrar lo mismo. Tampoco salen los tickets de tiendas sin cadena conocida ni los de hace más de 60 días.</li>
+      <li><strong>Nunca sale tu lista,</strong> ni lo que gastas, ni el total del ticket, ni la foto.</li>
+      <li><strong>No se guarda la IP con los precios:</strong> lo que se guarda son solo los siete campos de la tabla.</li>
+    </ul>
+    <p>
+      Recibe los precios un servidor mío en un VPS en España (Barcelona), que los guarda en una base de datos de
+      <a href="https://www.notion.com/es-es/help/privacy">Notion</a> a la que solo tengo acceso yo.
+      Con ellos se publicará una lista de precios por cadena y zona, abierta a todos los usuarios de la app.
+      <strong>No se usan para nada más, ni se venden ni se ceden.</strong>
+    </p>
+    <p>
+      Si lo desactivas, la app deja de enviar y borra lo que tenía pendiente de enviar. Lo que ya se envió
+      no se puede borrar a petición, precisamente porque no hay nada que lo relacione contigo.
+    </p>
+    <p>
+      Si algún día la app enviara cualquier dato que identifique a alguien, pasaría a pedirte permiso antes, no después.
+    </p>
+
+    <h2>Lo que Faltis no hace</h2>
+    <ul>
+      <li>No tiene registro ni pide tu nombre, tu correo ni tu teléfono.</li>
+      <li>No tiene publicidad, analítica ni informes de fallos.</li>
+      <li>No usa tu ubicación: la zona sale del código postal que escribes tú.</li>
+      <li>No accede a tus contactos, tu agenda ni tus fotos. Solo lee el ticket que eliges o fotografías.</li>
+    </ul>
+
+    <h2>Permisos</h2>
+    <ul>
+      <li><strong>Internet</strong>: para lo que hay en la tabla de arriba.</li>
+      <li><strong>Instalar aplicaciones</strong>: solo para instalar las actualizaciones de la propia Faltis cuando las aceptas.</li>
+    </ul>
+
+    <h2>Tus datos</h2>
+    <p>
+      En Ajustes puedes exportar todo a un archivo o borrarlo todo. Si desinstalas la app, desaparece todo
+      lo que había en el móvil.
+    </p>
+
+    <h2>Responsable y contacto</h2>
+    <p>
+      Faltis la hace Marc Mayol, a título personal. Para cualquier duda o petición,
+      <a href="https://github.com/marcmayol/faltis/issues">abre una incidencia en GitHub</a> o escribe desde
+      <a href="https://marcmayol.com/contacto">el formulario de contacto</a>.
+    </p>
+
+    <h2>Cambios</h2>
+    <p>Si esta política cambia, esta página tendrá una fecha nueva y lo dirán las notas de la versión.</p>
+
+    <footer>Faltis es un nombre provisional. · <a href="./">Volver</a></footer>
+  </div>
+</body>
+</html>
