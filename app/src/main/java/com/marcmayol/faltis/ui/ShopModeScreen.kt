@@ -77,7 +77,9 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
     val inCart = ui.needs.filter { it.state == NeedState.IN_CART.name }.sortedBy { it.cartOrder }
     val ordered = AisleLearner.order(pending, { vm.repo.keyFor(it) }, { tax.byId(it.typeId)?.categoryOrder ?: 999 }, aisle)
     val total = ui.needs.size
-    val cartCents = inCart.sumOf { n -> (vm.priceOf(n.id) as? NeedPriceResult.Priced)?.value?.costCents ?: 0L }
+    val priced: (com.marcmayol.faltis.data.NeedEntity) -> com.marcmayol.faltis.core.PricedNeed? = { n -> (vm.priceOf(n.id) as? NeedPriceResult.Priced)?.value }
+    val cartCents = inCart.sumOf { priced(it)?.costCents ?: 0L }
+    val estimateCents = ui.needs.sumOf { priced(it)?.costCents ?: 0L }
 
     HaloBackground(ground = Faltis.ShopGround, alignTop = false) {
         Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp)) {
@@ -106,16 +108,28 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
                 Column(horizontalAlignment = Alignment.End) {
                     SectionLabel("En el carro")
                     Text(euros(cartCents), style = Type.bigNumber.copy(fontSize = 26.sp))
+                    if (estimateCents > 0) Text("de ${euros(estimateCents)} estimados", style = Type.secondary.copy(fontSize = 12.sp))
                 }
             }
             GradientBar(if (total == 0) 0f else inCart.size.toFloat() / total, Modifier.padding(top = 10.dp), 8.dp)
             LazyColumn(Modifier.weight(1f).padding(top = 14.dp), contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (pending.isEmpty() && inCart.isEmpty()) item { EmptyState("Nada pendiente", "Tu lista está vacía.") }
-                if (ordered.isNotEmpty()) item { SectionLabel(if (aisle.isEmpty()) "Pendientes · por categoría" else "Siguiente, en tu orden de pasillos") }
-                items(ordered, key = { it.id }) { n -> BigRow(n.text, "${qtyText(n.qty)} ${n.unit}", done = false, highlight = n == ordered.first()) { vm.toggleCart(n) } }
+                if (aisle.isNotEmpty()) {
+                    if (ordered.isNotEmpty()) item { SectionLabel("Siguiente, en tu orden de pasillos") }
+                    items(ordered, key = { it.id }) { n -> BigRow(n, priced(n), vm, done = false, highlight = n == ordered.first()) { vm.toggleCart(n) } }
+                } else {
+                    // Sin orden aprendido: por categorias, con su icono, en el orden de la tienda tipica.
+                    val groups = ordered.groupBy { tax.byId(it.typeId)?.let { t -> Triple(t.categoryOrder, t.categoryName, t.categoryId) } ?: Triple(999, "Sin categoría", null) }
+                    groups.toSortedMap(compareBy { it.first }).forEach { (cat, needs) ->
+                        item(key = "h" + cat.second) { CategoryHeader(cat.third, cat.second, Modifier.padding(start = 4.dp, top = 6.dp), extra = "${needs.size}") }
+                        items(needs, key = { it.id }) { n -> BigRow(n, priced(n), vm, done = false, highlight = n == ordered.first()) { vm.toggleCart(n) } }
+                    }
+                }
                 if (inCart.isNotEmpty()) item { SectionLabel("En el carro · ${inCart.size}", Modifier.padding(top = 8.dp)) }
-                items(inCart, key = { "c" + it.id }) { n -> BigRow(n.text, "${qtyText(n.qty)} ${n.unit}", done = true, highlight = false) { vm.toggleCart(n) } }
+                items(inCart, key = { "c" + it.id }) { n -> BigRow(n, priced(n), vm, done = true, highlight = false) { vm.toggleCart(n) } }
             }
+            // Lo que te acuerdas en el pasillo, sin salir del modo compra.
+            AddBar(onAdd = { vm.addText(it) }, modifier = Modifier.padding(bottom = 8.dp), placeholder = "¿Algo más? Añádelo aquí")
         }
     }
 
@@ -140,12 +154,14 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
 }
 
 @Composable
-private fun BigRow(name: String, qty: String, done: Boolean, highlight: Boolean, onClick: () -> Unit) {
+private fun BigRow(n: com.marcmayol.faltis.data.NeedEntity, price: com.marcmayol.faltis.core.PricedNeed?, vm: AppViewModel, done: Boolean, highlight: Boolean, onClick: () -> Unit) {
+    val name = n.text
+    val qty = "${qtyText(n.qty)} ${n.unit}"
     Row(
         Modifier.fillMaxWidth().alpha(if (done) 0.5f else 1f).clip(RoundedCornerShape(20.dp)).background(Faltis.Surface)
             .border(if (highlight) 2.dp else 1.dp, if (highlight) Faltis.Action else Faltis.Elevated, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick).heightIn(min = 68.dp).padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             Modifier.size(30.dp).clip(RoundedCornerShape(10.dp))
@@ -153,7 +169,15 @@ private fun BigRow(name: String, qty: String, done: Boolean, highlight: Boolean,
                 .border(if (done) 0.dp else 2.5.dp, if (highlight) Faltis.ActionText else Faltis.LineStrong, RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center,
         ) { if (done) Icon(Icons.Filled.Check, "En el carro", tint = Faltis.ShopGround, modifier = Modifier.size(20.dp)) }
-        Text(name, style = Type.row.copy(fontSize = 20.sp, textDecoration = if (done) TextDecoration.LineThrough else null), modifier = Modifier.weight(1f))
-        Text(qty, style = Type.price.copy(color = Faltis.Ink2, fontSize = 16.sp))
+        ProductImage(price?.product?.imageUrl, vm.repo.taxonomy.byId(n.typeId)?.categoryId, 44.dp)
+        Column(Modifier.weight(1f)) {
+            Text(name, style = Type.row.copy(fontSize = 20.sp, textDecoration = if (done) TextDecoration.LineThrough else null))
+            // Que coger: el producto concreto (fijado o el mas barato) para no dudar delante del estante.
+            price?.let { Text(it.product.name + if (it.packs > 1) " ×${it.packs}" else "", style = Type.secondary.copy(fontSize = 13.sp), maxLines = 2) }
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(qty, style = Type.price.copy(color = Faltis.Ink2, fontSize = 16.sp))
+            price?.let { Text(euros(it.costCents), style = Type.price.copy(fontSize = 15.sp)) }
+        }
     }
 }

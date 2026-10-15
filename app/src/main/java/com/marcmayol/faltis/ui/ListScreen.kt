@@ -90,6 +90,7 @@ fun ListScreen(
     onPickProduct: (needId: Long) -> Unit,
     onStores: () -> Unit,
     contentPadding: PaddingValues,
+    onBack: (() -> Unit)? = null,
 ) {
     val ui by vm.listUi.collectAsState()
     val stores by vm.stores.collectAsState()
@@ -106,6 +107,7 @@ fun ListScreen(
     HaloBackground {
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             ListHeader(
+                onBack = onBack,
                 listName = ui.list?.name ?: "Compra",
                 lists = lists.map { it.id to it.name },
                 chainOfList = lists.mapNotNull { l -> stores.firstOrNull { it.id == l.storeId }?.let { l.id to it.chainId } }.toMap(),
@@ -128,12 +130,6 @@ fun ListScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (!com.marcmayol.faltis.BuildConfig.DEBUG) item {
-                    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as com.marcmayol.faltis.FaltisApp
-                    androidx.compose.runtime.LaunchedEffect(Unit) { app.actualizador.comprobar(com.marcm.actualizador.Modo.AUTOMATICO) }
-                    val estado by app.actualizador.estado.collectAsState()
-                    UpdateBanner(estado, { app.actualizador.actualizarAhora() }, Modifier.padding(bottom = 8.dp))
-                }
                 item {
                     TotalHero(ui, stores.map { it.id to it.name }, stores.associate { it.id to it.chainId }, vm::selectStore, onCompare, onShop, onStores, vm.webBusy.collectAsState().value)
                     Spacer(Modifier.height(10.dp))
@@ -149,12 +145,12 @@ fun ListScreen(
                         }
                     }
                 }
-                val grouped = ui.needs.groupBy { vm.repo.taxonomy.byId(it.typeId)?.let { t -> t.categoryOrder to t.categoryName } ?: (999 to "Sin categoría") }
+                val grouped = ui.needs.groupBy { vm.repo.taxonomy.byId(it.typeId)?.let { t -> Triple(t.categoryOrder, t.categoryName, t.categoryId) } ?: Triple(999, "Sin categoría", null) }
                     .toSortedMap(compareBy { it.first })
                 grouped.forEach { (cat, needs) ->
-                    item(key = "h-${cat.second}") { SectionLabel(cat.second, Modifier.padding(start = 4.dp, top = 8.dp)) }
+                    item(key = "h-${cat.second}") { CategoryHeader(cat.third, cat.second, Modifier.padding(start = 4.dp, top = 8.dp), extra = "${needs.size}") }
                     items(needs, key = { it.id }) { n ->
-                        NeedRow(n, vm.priceOf(n.id), onClick = { editing = n }, onDelete = { vm.deleteNeed(n) })
+                        NeedRow(n, vm.priceOf(n.id), vm.repo.taxonomy.byId(n.typeId)?.categoryId, onClick = { editing = n }, onDelete = { vm.deleteNeed(n) })
                     }
                 }
             }
@@ -178,6 +174,7 @@ fun ListScreen(
 
 @Composable
 private fun ListHeader(
+    onBack: (() -> Unit)?,
     listName: String,
     lists: List<Pair<Long, String>>,
     chainOfList: Map<Long, String>,
@@ -191,12 +188,17 @@ private fun ListHeader(
 ) {
     var listMenu by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(start = if (onBack != null) 16.dp else 20.dp, end = 16.dp, top = 14.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        onBack?.let { BackButton(it); Spacer(Modifier.width(12.dp)) }
         Column(Modifier.weight(1f)) {
-            SectionLabel("Lista activa")
+            SectionLabel("Lista")
             Box {
                 Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { listMenu = true }.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(listName, style = Type.screenTitle, maxLines = 1)
+                    // Con boton de volver hay menos sitio: un punto mas pequeño y, si no cabe, puntos suspensivos.
+                    Text(
+                        listName, style = if (onBack != null) Type.screenTitle.copy(fontSize = 26.sp) else Type.screenTitle,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                    )
                     Icon(Icons.Filled.ArrowDropDown, "Cambiar de lista")
                 }
                 DropdownMenu(listMenu, { listMenu = false }) {
@@ -321,7 +323,7 @@ private fun TotalHero(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NeedRow(n: NeedEntity, price: NeedPriceResult?, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun NeedRow(n: NeedEntity, price: NeedPriceResult?, categoryId: String?, onClick: () -> Unit, onDelete: () -> Unit) {
     val state = rememberSwipeToDismissBoxState(confirmValueChange = { v ->
         if (v == SwipeToDismissBoxValue.EndToStart) { onDelete(); true } else false
     })
@@ -340,6 +342,7 @@ private fun NeedRow(n: NeedEntity, price: NeedPriceResult?, onClick: () -> Unit,
                 .heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ProductImage((price as? NeedPriceResult.Priced)?.value?.product?.imageUrl, categoryId, 44.dp)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(n.text, style = Type.row, maxLines = 2)
@@ -412,7 +415,7 @@ fun sealStyle(p: PricedNeed): SealStyle = when {
 }
 
 @Composable
-private fun AddBar(onAdd: (String) -> Unit, modifier: Modifier = Modifier) {
+fun AddBar(onAdd: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String = "Añadir: leche, pan, 2 kg de naranjas…") {
     var text by rememberSaveable { mutableStateOf("") }
     Row(
         modifier.fillMaxWidth().imePadding().clip(RoundedCornerShape(18.dp)).background(Faltis.Surface)
@@ -421,7 +424,7 @@ private fun AddBar(onAdd: (String) -> Unit, modifier: Modifier = Modifier) {
     ) {
         TextField(
             value = text, onValueChange = { text = it },
-            placeholder = { Text("Añadir: leche, pan, 2 kg de naranjas…", style = Type.body.copy(color = Faltis.Ink3), maxLines = 1) },
+            placeholder = { Text(placeholder, style = Type.body.copy(color = Faltis.Ink3), maxLines = 1) },
             modifier = Modifier.weight(1f),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -513,14 +516,17 @@ private fun NeedSheet(n: NeedEntity, vm: AppViewModel, onDismiss: () -> Unit, on
 }
 
 @Composable
-fun SelectPill(text: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
+fun SelectPill(text: String, selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
+    Row(
         Modifier.clip(RoundedCornerShape(12.dp))
             .background(if (selected) Faltis.ActionSoft else Faltis.Elevated)
             .border(1.dp, if (selected) Faltis.Action else Faltis.LineStrong, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick).heightIn(min = 40.dp).padding(horizontal = 14.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, style = Type.row.copy(fontSize = 14.sp, fontWeight = if (selected) FontWeight.W700 else FontWeight.W500)) }
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        icon?.let { Icon(it, null, tint = if (selected) Faltis.Brand else Faltis.Ink2, modifier = Modifier.size(18.dp)) }
+        Text(text, style = Type.row.copy(fontSize = 14.sp, fontWeight = if (selected) FontWeight.W700 else FontWeight.W500))
+    }
 }
 
 /** «¿A qué lista lo añado?»: la de cada super (se crea al elegirla si no existe) o la general que se ve. */

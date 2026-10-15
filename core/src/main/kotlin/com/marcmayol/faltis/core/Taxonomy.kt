@@ -82,6 +82,26 @@ class Taxonomy(val types: List<ProductType>) {
 
     private val singleWordSynonyms = synonymIndex.filter { ' ' !in it.first }
 
+    /**
+     * Para nombres de producto de una tienda ("Agua mineral Bezoya 1,5 l"): el tipo tiene que ser lo
+     * que el nombre dice que ES, que en español va delante. "Bolsa de agua caliente" es una bolsa, no
+     * agua. Se admiten delante numeros y palabras de formato ("3 barras de pan", "pack", "mini").
+     * Sin erratas: los nombres de tienda vienen bien escritos.
+     */
+    fun matchProductName(name: String): TypeMatch? {
+        val words = canon(name).split(' ').filter { it.isNotEmpty() }
+        val lead = words.takeWhile { w -> w[0].isDigit() || w in leadWords }.size
+        val head = " " + words.drop(lead).joinToString(" ") + " "
+        for ((syn, type) in synonymIndex) {
+            if (head.startsWith(" $syn ")) return TypeMatch(type, 60 + syn.length.coerceAtMost(30))
+        }
+        return null
+    }
+
+    /** Palabras de formato y marcas propias de una palabra ("Milbona yogur natural"), que pueden ir delante. */
+    private val leadWords = setOf("pack", "mini", "maxi", "x", "nuevo", "nueva", "gran", "bandeja", "malla", "bolsita", "paquete", "lote") +
+        ProductMatcher.storeBrands.values.flatten().filter { ' ' !in it }.map { Text.singular(it) }
+
     /** Para lineas de ticket: primero abreviaturas de la cadena, luego sinonimos. */
     fun matchTicketLine(raw: String): TypeMatch? {
         val n = " " + Text.normalize(raw) + " "

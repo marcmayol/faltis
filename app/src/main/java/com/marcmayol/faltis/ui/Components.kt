@@ -31,6 +31,12 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -344,3 +350,32 @@ fun TopBar(title: String, subtitle: String? = null, onBack: (() -> Unit)?, actio
 
 @Suppress("unused")
 private fun Modifier.nudge(): Modifier = this.offset(0.dp, 0.dp)
+
+// ─── Foto del producto ────────────────────────────────────────────────────────
+/**
+ * Foto del producto sobre fondo claro (las fotos de catalogo vienen con fondo blanco). Sin foto,
+ * o mientras carga o si falla, el icono de su categoria.
+ */
+@Composable
+fun ProductImage(url: String?, categoryId: String?, size: Dp = 48.dp) {
+    val shape = RoundedCornerShape(size * 0.22f)
+    Box(
+        Modifier.size(size).clip(shape).background(if (url != null) Color.White else Faltis.Elevated).border(1.dp, Faltis.Line, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        var failed by remember(url) { mutableStateOf(url == null) }
+        if (failed) Icon(categoryIcon(categoryId), null, tint = Faltis.Ink3, modifier = Modifier.size(size * 0.45f))
+        if (url != null) coil.compose.AsyncImage(
+            model = url, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+            modifier = Modifier.fillMaxSize().padding(size * 0.06f), onError = { failed = true },
+        )
+    }
+}
+
+/** Corazon de favorito (relleno si lo es). */
+@Composable
+fun FavoriteButton(on: Boolean, onClick: () -> Unit) = SquareIconButton(
+    if (on) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+    if (on) "Quitar de favoritos" else "Añadir a favoritos", onClick,
+    tint = if (on) Faltis.Brand else Faltis.Ink,
+)

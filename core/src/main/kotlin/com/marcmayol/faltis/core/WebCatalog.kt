@@ -24,6 +24,8 @@ data class WebProduct(
     val netUnit: QtyUnit?,
     /** Precio de oferta (Lidl solo pone precio a lo que esta en oferta). */
     val offer: Boolean = false,
+    /** Foto del producto en la web de la cadena. */
+    val imageUrl: String? = null,
 )
 
 /**
@@ -93,6 +95,7 @@ object WebCatalog {
             priceCents = (euros * 100).roundToLong(),
             netQty = if (bulk) null else p["unit_size"].num(),
             netUnit = unit,
+            imageUrl = h["thumbnail"].text()?.takeIf { it.startsWith("https://") },
         )
     }
 

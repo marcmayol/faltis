@@ -28,6 +28,9 @@ data class ProductRef(
     val netUnit: QtyUnit?,
     val ean: String?,
     val isSample: Boolean,
+    /** Foto del producto (de la web de la cadena o de Open Food Facts). */
+    val imageUrl: String? = null,
+    val isFavorite: Boolean = false,
 )
 
 data class PriceObservation(

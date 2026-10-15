@@ -1,6 +1,7 @@
 package com.marcmayol.faltis.data
 
 import com.marcmayol.faltis.core.WebProduct
+import com.marcmayol.faltis.core.OpenFoodFacts
 import com.marcmayol.faltis.core.WebCatalog
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
@@ -98,7 +99,7 @@ class Repository(private val context: Context) {
     val textParser = FreeTextParser(taxonomy)
     val ticketParser = TicketParser(taxonomy)
 
-    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3, FaltisDb.MIGRATION_3_4).build()
+    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3, FaltisDb.MIGRATION_3_4, FaltisDb.MIGRATION_4_5).build()
     val dao = db.dao()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -206,7 +207,7 @@ class Repository(private val context: Context) {
     fun ProductEntity.toRef() = ProductRef(
         id, chainId, name, brand, isPrivateLabel, typeId, variant,
         tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
-        netQty, QtyUnit.fromCode(netUnit), ean, isSample,
+        netQty, QtyUnit.fromCode(netUnit), ean, isSample, imageUrl, isFavorite,
     )
 
     fun PriceObsEntity.toObs() = PriceObservation(
@@ -565,13 +566,34 @@ class Repository(private val context: Context) {
      * Se guardan como precio de la CADENA (sin tienda): el de un ticket de tu tienda siempre gana.
      * Sin [force], se salta lo traido hace menos de un dia. Devuelve cuantos precios ha guardado.
      */
-    suspend fun refreshWebPrices(needs: List<NeedEntity>, force: Boolean = false): Int {
+    suspend fun refreshWebPrices(needs: List<NeedEntity>, force: Boolean = false, everywhere: Boolean = false): Int {
         val s = settings.first()
         if (!s.webPrices || !WebCatalog.isPostalCode(s.postalCode)) return 0
-        val chains = dao.favoriteStoresNow().map { it.chainId }.distinct().filter { it in WebCatalog.chains }
-        if (chains.isEmpty()) return 0
-        val typed = needs.mapNotNull { n -> taxonomy.byId(n.typeId)?.let { n to it } }.distinctBy { it.second.id }
-        if (typed.isEmpty()) return 0
+        val chains = if (everywhere) WebCatalog.chains.toList()
+            else dao.favoriteStoresNow().map { it.chainId }.distinct().filter { it in WebCatalog.chains }
+        val typed = needs.mapNotNull { n -> taxonomy.byId(n.typeId)?.let { n.text to it } }.distinctBy { it.second.id }
+        return fetchWeb(s, chains, typed, force)
+    }
+
+    /**
+     * «Comparar en otros súper» de un producto: lo busca en la web de todas las cadenas.
+     * Devuelve cuantos precios ha guardado; -1 si los precios web estan apagados.
+     */
+    suspend fun searchEverywhere(product: ProductRef, force: Boolean = false): Int {
+        val s = settings.first()
+        if (!s.webPrices || !WebCatalog.isPostalCode(s.postalCode)) return -1
+        val type = taxonomy.byId(product.typeId) ?: return 0
+        // Se busca por lo que es, sin marca ni envase: "Croissant de mantequilla", no "… Hacendado · pieza".
+        val brandWords = ProductMatcher.brandWords(product.brand).toSet()
+        val query = product.name.substringBefore(" · ").split(' ').filter { Text.normalize(it) !in brandWords && it.isNotBlank() }
+            .joinToString(" ").ifBlank { type.name }
+        return fetchWeb(s, WebCatalog.chains.toList(), listOf(query to type), force)
+    }
+
+    /** Busca cada texto en la web de cada cadena (todas a la vez) y guarda lo que sea de su tipo. */
+    private suspend fun fetchWeb(s: Settings, chains: List<String>, items: List<Pair<String, com.marcmayol.faltis.core.ProductType>>, force: Boolean): Int {
+        if (chains.isEmpty() || items.isEmpty()) return 0
+        reclassifyWebProducts()
         val dayAgo = now() - 24 * 3600_000L
         // Cada cadena por su lado y a la vez: si una web falla o tarda, las demas siguen.
         return coroutineScope {
@@ -584,12 +606,12 @@ class Repository(private val context: Context) {
                             ?: web.zone(chain, s.postalCode)?.also { saveZone(chain, it) }
                             ?: return@runCatching
                         var searches = 0
-                        for ((need, type) in typed) {
+                        for ((text, type) in items) {
                             if (!force && (dao.lastWebPrice(chain, type.id) ?: 0) > dayAgo) continue
                             // Algunas webs cortan si se buscan muchas cosas seguidas: el resto, en la proxima.
                             if (searches++ >= WebPrices.maxSearches(chain)) break
-                            val found = web.search(chain, need.text, zone)
-                                .mapNotNull { p -> taxonomy.match(p.name, tolerateTypos = false)?.type?.takeIf { type.covers(it) }?.let { p to it } }
+                            val found = web.search(chain, text, zone)
+                                .mapNotNull { p -> taxonomy.matchProductName(p.name)?.type?.takeIf { type.covers(it) }?.let { p to it } }
                                 .take(MAX_WEB_PER_NEED)
                             db.withTransaction { found.forEach { (p, t) -> saveWebPrice(p, t.id); saved++ } }
                         }
@@ -597,6 +619,22 @@ class Repository(private val context: Context) {
                     saved
                 }
             }.awaitAll().sum()
+        }
+    }
+
+    private var reclassified = false
+
+    /**
+     * Si la taxonomia cambia (p. ej. "tomate triturado" pasa a ser despensa), los productos web ya
+     * guardados con el tipo viejo se corrigen una vez por arranque, para que no sigan sumando donde no tocan.
+     */
+    suspend fun reclassifyWebProducts() {
+        if (reclassified) return
+        reclassified = true
+        dao.allProducts().first().filter { !it.isSample && !it.fromTicket && it.typeId != null }.forEach { p ->
+            // Sin tipo deja de compararse: era una "bolsa de agua" guardada como agua.
+            val t = taxonomy.matchProductName(p.name)?.type?.id
+            if (t != p.typeId) dao.updateProduct(p.copy(typeId = t, variant = t?.let { taxonomy.byId(it)?.name }))
         }
     }
 
@@ -613,7 +651,8 @@ class Repository(private val context: Context) {
             netQty = p.netQty, netUnit = p.netUnit?.code, variant = taxonomy.byId(typeId)?.name,
         )
         val existing = dao.webProduct(p.chainId, norm)
-        val id = if (existing == null) dao.insertProduct(entity) else existing.id.also { dao.updateProduct(entity.copy(id = it)) }
+        val id = if (existing == null) dao.insertProduct(entity.copy(imageUrl = p.imageUrl))
+            else existing.id.also { dao.updateProduct(entity.copy(id = it, ean = existing.ean, isFavorite = existing.isFavorite, imageUrl = p.imageUrl ?: existing.imageUrl)) }
         dao.deleteWebObs(id)
         dao.insertObs(
             PriceObsEntity(
@@ -621,6 +660,51 @@ class Repository(private val context: Context) {
                 kind = (if (p.offer) PriceKind.PROMO else PriceKind.REGULAR).name, source = PriceSource.WEB.name, observedAtMillis = now(),
             ),
         )
+    }
+
+    // ── Fichas de Open Food Facts ──
+    private val foodFacts = FoodFacts()
+
+    /**
+     * La ficha del producto: la guardada si es reciente; si no, por su codigo de barras o, sin el,
+     * por nombre y marca. Sin conexion devuelve la guardada aunque sea vieja.
+     */
+    suspend fun nutrition(productId: Long, force: Boolean = false): NutritionLookup {
+        val p = dao.product(productId) ?: return NutritionLookup.NotFound
+        val ean = FoodFacts.validEan(p.ean)
+        val cached = dao.nutrition(productId)
+        val cachedLookup = cached?.let { c -> c.body?.let { b -> OpenFoodFacts.parseProduct(b)?.let { NutritionLookup.Found(it, c.approximate) } } ?: NutritionLookup.NotFound }
+        val maxAge = if (cached?.body != null) 30L * DAY_MS else 7L * DAY_MS
+        if (!force && cached != null && cached.ean == ean && now() - cached.fetchedAtMillis < maxAge) return cachedLookup!!
+        val result = runCatching {
+            if (ean != null) foodFacts.byEan(ean)?.let { it to false }
+            else foodFacts.byName(p.name.substringBefore(" · "), OpenFoodFacts.searchBrand(p.brand, p.chainId, p.isPrivateLabel))?.let { it to true }
+        }
+        if (result.isFailure) return cachedLookup ?: NutritionLookup.Offline
+        val found = result.getOrNull()
+        dao.upsertNutrition(NutritionEntity(productId, ean, found?.first?.body, found?.second ?: false, now()))
+        found?.first?.facts?.imageUrl?.let { dao.setImageIfMissing(productId, it) }
+        return found?.let { NutritionLookup.Found(it.first.facts, it.second) } ?: NutritionLookup.NotFound
+    }
+
+    suspend fun setFavorite(productId: Long, on: Boolean) = dao.setFavorite(productId, on)
+
+    /** Guarda el codigo de barras leido y busca su ficha. false si el codigo no es valido. */
+    suspend fun setEan(productId: Long, code: String): Boolean {
+        val ean = FoodFacts.validEan(code) ?: return false
+        val p = dao.product(productId) ?: return false
+        dao.updateProduct(p.copy(ean = ean))
+        dao.deleteNutrition(productId)
+        return true
+    }
+
+    /** Borra una lista y lo que tiene pendiente; si era la activa, pasa a otra. */
+    suspend fun deleteList(id: Long) {
+        db.withTransaction {
+            dao.deleteOpenNeedsOf(id)
+            dao.deleteList(id)
+        }
+        if (settings.first().activeListId == id) dao.listsNow().firstOrNull()?.let { setActiveList(it.id) }
     }
 
     suspend fun deleteSample() = db.withTransaction {
@@ -651,6 +735,7 @@ class Repository(private val context: Context) {
     private fun jsonString(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
     companion object {
+        private const val DAY_MS = 24 * 3600_000L
         fun now() = System.currentTimeMillis()
         fun formatQty(q: Double): String =
             if (q == q.roundToLong().toDouble()) q.roundToLong().toString() else "%.2f".format(q).trimEnd('0').trimEnd(',', '.')

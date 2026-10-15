@@ -16,6 +16,7 @@ camerax = "1.5.3"
 datastore = "1.1.7"
 mlkitText = "16.0.1"
 mlkitBarcode = "17.3.0"
+coil = "2.7.0"
 pdfbox = "2.0.27.0"
 
 compileSdk = "36"
@@ -46,6 +47,7 @@ androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "
 # Modelos incluidos en el APK: funcionan sin conexion y sin Play Services.
 mlkit-text = { module = "com.google.mlkit:text-recognition", version.ref = "mlkitText" }
 mlkit-barcode = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcode" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }

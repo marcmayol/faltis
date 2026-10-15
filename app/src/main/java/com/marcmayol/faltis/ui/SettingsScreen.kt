@@ -120,7 +120,7 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
                 ) {
                     SettingRow(
                         "Precios web",
-                        "Antes de tu primer ticket, toma los precios de las tiendas online de tus cadenas. Usa internet; tus listas no salen del móvil.",
+                        "Antes de tu primer ticket, toma los precios de las tiendas online de tus cadenas y te deja comparar en todos los súper. Usa internet; tus listas no salen del móvil.",
                     ) {
                         Switch(web, { on -> if (on && !WebCatalog.isPostalCode(settings?.postalCode ?: "")) postalDialog = true else vm.setWebPrices(on) },
                             colors = SwitchDefaults.colors(checkedTrackColor = Faltis.Action))
@@ -168,7 +168,8 @@ fun SettingsScreen(vm: AppViewModel, contentPadding: PaddingValues) {
             item {
                 SettingRow(
                     if (BuildConfig.DEBUG) "Faltis ${BuildConfig.VERSION_NAME}" else "Privacidad y créditos",
-                    "Nombre provisional. Tus listas y tus tickets no salen del móvil. Internet se usa para buscar actualizaciones, para leer los precios web si los activas " +
+                    "Nombre provisional. Tus listas y tus tickets no salen del móvil. Internet se usa para buscar actualizaciones, para leer los precios web si los activas, " +
+                        "para la ficha nutricional de un producto (Open Food Facts, al abrirla), para las fotos de los productos " +
                         "y para compartir los precios de tus tickets, línea a línea y sin nada que te identifique, salvo que lo desactives. " +
                         "Sin analítica. Tipografías Archivo e IBM Plex Mono (SIL OFL). Partes de código abierto: ver NOTICE. Toca para leer la política de privacidad.",
                     onClick = { uri.openUri(PRIVACY_URL) },

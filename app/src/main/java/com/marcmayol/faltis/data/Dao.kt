@@ -32,6 +32,8 @@ interface FaltisDao {
     @Insert suspend fun insertProduct(p: ProductEntity): Long
     @Insert suspend fun insertProducts(p: List<ProductEntity>): List<Long>
     @Update suspend fun updateProduct(p: ProductEntity)
+    @Query("UPDATE product SET isFavorite = :on WHERE id = :id") suspend fun setFavorite(id: Long, on: Boolean)
+    @Query("UPDATE product SET imageUrl = :url WHERE id = :id AND imageUrl IS NULL") suspend fun setImageIfMissing(id: Long, url: String)
     /** Producto ya traido de la web (ni de ticket ni de ejemplo). */
     @Query("SELECT * FROM product WHERE chainId = :chainId AND nameNorm = :nameNorm AND isSample = 0 AND fromTicket = 0 LIMIT 1")
     suspend fun webProduct(chainId: String, nameNorm: String): ProductEntity?
@@ -55,6 +57,8 @@ interface FaltisDao {
     @Insert suspend fun insertList(l: ListEntity): Long
     @Update suspend fun updateList(l: ListEntity)
     @Query("DELETE FROM shopping_list WHERE id = :id") suspend fun deleteList(id: Long)
+    @Query("DELETE FROM need WHERE listId = :listId AND state != 'BOUGHT'") suspend fun deleteOpenNeedsOf(listId: Long)
+    @Query("SELECT listId, COUNT(*) AS count FROM need WHERE state != 'BOUGHT' GROUP BY listId") fun listCounts(): Flow<List<ListCount>>
 
     @Query("SELECT * FROM need WHERE listId = :listId AND state != 'BOUGHT' ORDER BY position, id")
     fun openNeeds(listId: Long): Flow<List<NeedEntity>>
@@ -104,6 +108,11 @@ interface FaltisDao {
     @Query("DELETE FROM store WHERE isSample = 1 AND id NOT IN (SELECT storeId FROM purchase WHERE storeId IS NOT NULL)") suspend fun deleteSampleStores()
     @Query("SELECT COUNT(*) FROM product WHERE isSample = 1") fun sampleCount(): Flow<Int>
 
+    // Fichas de Open Food Facts
+    @Query("SELECT * FROM nutrition WHERE productId = :productId") suspend fun nutrition(productId: Long): NutritionEntity?
+    @Upsert suspend fun upsertNutrition(n: NutritionEntity)
+    @Query("DELETE FROM nutrition WHERE productId = :productId") suspend fun deleteNutrition(productId: Long)
+
     // Cola de precios compartidos
     @Insert suspend fun insertShareLines(lines: List<ShareLineEntity>)
     @Query("SELECT * FROM share_line WHERE createdAtMillis <= :before ORDER BY RANDOM() LIMIT :limit") suspend fun shareLinesReady(before: Long, limit: Int): List<ShareLineEntity>
@@ -117,9 +126,9 @@ interface FaltisDao {
     entities = [
         StoreEntity::class, ProductEntity::class, PriceObsEntity::class, ListEntity::class, NeedEntity::class,
         AisleOrderEntity::class, PurchaseEntity::class, PurchaseLineEntity::class, AbbreviationEntity::class,
-        ShareLineEntity::class,
+        ShareLineEntity::class, NutritionEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class FaltisDb : RoomDatabase() {
@@ -150,6 +159,18 @@ abstract class FaltisDb : RoomDatabase() {
                         "`kind` TEXT NOT NULL, `day` TEXT NOT NULL, `createdAtMillis` INTEGER NOT NULL)",
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_share_line_purchaseId` ON `share_line` (`purchaseId`)")
+            }
+        }
+
+        /** v5: fichas de Open Food Facts, foto del producto y favoritos. */
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `nutrition` (`productId` INTEGER NOT NULL, `ean` TEXT, `body` TEXT, " +
+                        "`approximate` INTEGER NOT NULL, `fetchedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`productId`))",
+                )
+                db.execSQL("ALTER TABLE product ADD COLUMN imageUrl TEXT")
+                db.execSQL("ALTER TABLE product ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

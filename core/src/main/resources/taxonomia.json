@@ -82,6 +82,7 @@
       {"id": "despensa/aceite-oliva", "name": "Aceite de oliva", "unit": "l", "syn": ["aceite", "aceite de oliva", "oli", "aove"], "abbr": ["ACEITE OLIVA", "A.OLIVA", "ACEITE"]},
       {"id": "despensa/aceite-girasol", "name": "Aceite de girasol", "unit": "l", "syn": ["aceite de girasol", "girasol"], "abbr": ["ACEITE GIRASOL", "A.GIRASOL"]},
       {"id": "despensa/tomate-frito", "name": "Tomate frito", "unit": "g", "syn": ["tomate frito"], "abbr": ["TOMATE FRITO", "T.FRITO"]},
+      {"id": "despensa/tomate-triturado", "name": "Tomate triturado o en conserva", "unit": "g", "syn": ["tomate triturado", "tomate natural triturado", "tomate pelado", "tomate entero pelado", "tomate concentrado", "tomate en conserva", "tomate rallado"], "abbr": ["TOMATE TRITURADO", "T.TRITURADO"]},
       {"id": "despensa/harina", "name": "Harina", "unit": "kg", "syn": ["harina", "farina"], "abbr": ["HARINA"]},
       {"id": "despensa/azucar", "name": "Azúcar", "unit": "kg", "syn": ["azucar", "sucre"], "abbr": ["AZUCAR"]},
       {"id": "despensa/sal", "name": "Sal", "unit": "kg", "syn": ["sal"], "abbr": ["SAL"]},
@@ -122,7 +123,8 @@
       {"id": "higiene/gel", "name": "Gel de ducha", "unit": "ml", "syn": ["gel", "gel de ducha"], "abbr": ["GEL"]},
       {"id": "higiene/champu", "name": "Champú", "unit": "ml", "syn": ["champu", "xampu"], "abbr": ["CHAMPU"]},
       {"id": "higiene/pasta-dientes", "name": "Pasta de dientes", "unit": "ml", "syn": ["pasta de dientes", "dentifrico"], "abbr": ["DENTIFRICO", "PASTA DENT"]},
-      {"id": "higiene/desodorante", "name": "Desodorante", "unit": "ud", "syn": ["desodorante"], "abbr": ["DESODORANTE"]}
+      {"id": "higiene/desodorante", "name": "Desodorante", "unit": "ud", "syn": ["desodorante"], "abbr": ["DESODORANTE"]},
+      {"id": "higiene/desmaquillante", "name": "Desmaquillante", "unit": "ml", "syn": ["agua micelar", "desmaquillante", "toallitas desmaquillantes"]}
     ]}
   ]
 }

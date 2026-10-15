@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -80,16 +83,23 @@ fun PricesScreen(vm: AppViewModel, onProduct: (Long) -> Unit, onCompare: () -> U
     val settings by vm.settings.collectAsState()
     var query by rememberSaveable { mutableStateOf("") }
     var onlyMine by rememberSaveable { mutableStateOf(true) }
+    var onlyFav by rememberSaveable { mutableStateOf(false) }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
+    var categorySheet by remember { mutableStateOf(false) }
+    val categories = remember { vm.repo.taxonomy.categories() }
     val storeRefs = with(vm.repo) { stores.map { it.toRef() } }
     val myChains = stores.map { it.chainId }.toSet()
 
-    val results = remember(book, query, onlyMine, stores) {
+    val results = remember(book, query, onlyMine, stores, onlyFav, category) {
         val b = book ?: return@remember emptyList()
         val words = T.words(query)
         b.productsById.values.asSequence()
             .filter { !onlyMine || it.chainId in myChains }
+            .filter { !onlyFav || it.isFavorite }
+            .filter { category == null || vm.repo.taxonomy.byId(it.typeId)?.categoryId == category }
             .filter { p -> words.isEmpty() || words.all { w -> T.normalize(p.name).contains(w) } }
-            .mapNotNull { p -> bestIn(b, p, storeRefs, settings?.includePromos == true) ?: if (words.isNotEmpty()) BestPrice(p, "", -1, null, "—", SealStyle.NEUTRAL) else null }
+            // Los favoritos y lo buscado salen aunque no tengan precio en tus tiendas.
+            .mapNotNull { p -> bestIn(b, p, storeRefs, settings?.includePromos == true) ?: if (words.isNotEmpty() || onlyFav) BestPrice(p, "", -1, null, "—", SealStyle.NEUTRAL) else null }
             .sortedWith(compareBy({ if (words.isNotEmpty() && T.normalize(it.product.name).startsWith(words.first())) 0 else 1 }, { if (it.cents < 0) 1 else 0 }, { it.product.name }))
             .take(80).toList()
     }
@@ -128,12 +138,21 @@ fun PricesScreen(vm: AppViewModel, onProduct: (Long) -> Unit, onCompare: () -> U
                     )
                 }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // En varias lineas si no caben (letra grande o pantalla pequeña).
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SelectPill("Mis tiendas", onlyMine) { onlyMine = true }
                         SelectPill("Todas", !onlyMine) { onlyMine = false }
+                        SelectPill("Favoritos", onlyFav, if (onlyFav) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder) { onlyFav = !onlyFav }
+                        CategoryPill(categories, category) { categorySheet = true }
                     }
                 }
-                if (results.isEmpty()) item { EmptyState("Aún no hay precios", "Busca o escanea un ticket para empezar a ver precios.") }
+                if (results.isEmpty()) item {
+                    when {
+                        onlyFav -> EmptyState("Sin favoritos" + (category?.let { " en esta categoría" } ?: ""), "Abre un producto y toca el corazón para guardarlo aquí.")
+                        category != null -> EmptyState("Nada en esta categoría", "Prueba con «Todas» las tiendas o con otra categoría.")
+                        else -> EmptyState("Aún no hay precios", "Busca o escanea un ticket para empezar a ver precios.")
+                    }
+                }
                 items(results, key = { it.product.id }) { r ->
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Faltis.Surface).border(1.dp, Faltis.Elevated, RoundedCornerShape(16.dp))
@@ -148,44 +167,71 @@ fun PricesScreen(vm: AppViewModel, onProduct: (Long) -> Unit, onCompare: () -> U
                             .heightIn(min = 64.dp).padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        ChainChip(r.product.chainId, 32.dp)
+                        ProductImage(r.product.imageUrl, vm.repo.taxonomy.byId(r.product.typeId)?.categoryId, 48.dp)
                         Column(Modifier.weight(1f)) {
                             Text(r.product.name, style = Type.row.copy(fontSize = 15.sp), maxLines = 2)
                             Text(
-                                listOfNotNull(formatLabel(r.product).takeIf { it.isNotBlank() }, r.unitCents?.let { "${euros(it)}${Packs.unitPriceLabel(r.product.netUnit).removePrefix("€")}" }).joinToString(" · "),
+                                listOfNotNull(
+                                    Chains.byId(r.product.chainId).name, formatLabel(r.product).takeIf { it.isNotBlank() },
+                                    r.unitCents?.let { "${euros(it)}${Packs.unitPriceLabel(r.product.netUnit).removePrefix("€")}" },
+                                ).joinToString(" · "),
                                 style = Type.secondary.copy(fontSize = 12.sp),
                             )
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             if (r.cents >= 0) { Text(euros(r.cents), style = Type.price); Seal(r.seal, r.style) } else Text("sin precio", style = Type.secondary)
                         }
+                        // Desde favoritos, a la lista de un toque.
+                        if (pickForNeed == null && onlyFav) SquareIconButton(Icons.Filled.Add, "Añadir a la lista", {
+                            vm.run {
+                                val listId = vm.repo.ensureActiveList()
+                                vm.repo.addPinned(listId, r.product.name, r.product.typeId, r.product.id)
+                                vm.say("«${r.product.name}» añadido a la lista")
+                            }
+                        })
                     }
                 }
             }
         }
     }
+    if (categorySheet) CategorySheet(categories, category, { category = it }, { categorySheet = false })
 }
 
 // ─── P-05 · Ficha ─────────────────────────────────────────────────────────────
 @Composable
-fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, contentPadding: PaddingValues) {
+fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, onCompare: () -> Unit, contentPadding: PaddingValues) {
     val book by vm.priceBook.collectAsState()
     val stores by vm.stores.collectAsState()
     val settings by vm.settings.collectAsState()
     val b = book
     val p = b?.productsById?.get(productId)
+    // Ficha de Open Food Facts: se pide al abrir y otra vez al leer un codigo de barras.
+    var reload by remember { mutableStateOf(0) }
+    var lookup by remember { mutableStateOf<com.marcmayol.faltis.data.NutritionLookup?>(null) }
+    androidx.compose.runtime.LaunchedEffect(productId, reload) {
+        lookup = null
+        lookup = vm.repo.nutrition(productId, force = reload > 0)
+    }
+    var scanning by remember { mutableStateOf(false) }
     HaloBackground(color = Faltis.Saving, second = Faltis.Blue) {
         Column(Modifier.fillMaxSize().padding(contentPadding)) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 BackButton(onBack)
                 Text(p?.ean?.let { "EAN $it" } ?: "", style = Type.mono.copy(color = Faltis.Ink3), modifier = Modifier.weight(1f).padding(start = 12.dp))
+                if (p != null) FavoriteButton(p.isFavorite) { vm.toggleFavorite(p) }
             }
             if (b == null || p == null) { EmptyState("Producto no encontrado", ""); return@Column }
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 item {
-                    SectionLabel(vm.repo.taxonomy.byId(p.typeId)?.let { "${it.categoryName} · ${it.name}" } ?: "sin tipo", color = Faltis.Saving)
-                    Text(p.name, style = Type.screenTitle.copy(fontSize = 28.sp), modifier = Modifier.padding(top = 6.dp))
-                    Text(listOfNotNull(p.brand, formatLabel(p).ifBlank { null }, Chains.byId(p.chainId).name).joinToString(" · "), style = Type.secondary.copy(fontSize = 14.sp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        ProductImage(p.imageUrl ?: (lookup as? com.marcmayol.faltis.data.NutritionLookup.Found)?.facts?.imageUrl, p.typeId?.let { vm.repo.taxonomy.byId(it)?.categoryId }, 96.dp)
+                        Column(Modifier.weight(1f)) {
+                            SectionLabel(vm.repo.taxonomy.byId(p.typeId)?.let { "${it.categoryName} · ${it.name}" } ?: "sin tipo", color = Faltis.Saving)
+                            Text(p.name, style = Type.screenTitle.copy(fontSize = 24.sp), modifier = Modifier.padding(top = 6.dp))
+                            Text(listOfNotNull(p.brand, formatLabel(p).ifBlank { null }, Chains.byId(p.chainId).name).joinToString(" · "), style = Type.secondary.copy(fontSize = 14.sp))
+                        }
+                    }
+                    SecondaryButton("Comparar en otros súper", onCompare, Modifier.fillMaxWidth().padding(top = 14.dp), icon = Icons.Filled.Search)
                 }
                 item {
                     val now = Instant.now()
@@ -208,6 +254,7 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
                         rows.forEach { r -> StoreOfferRow(r, r === cheapest, now) }
                     }
                 }
+                item { NutritionSection(lookup, onScan = { scanning = true }, onRetry = { reload++ }) }
                 item {
                     val history = b.observationsOf(p.id).sortedByDescending { it.observedAt }.take(10)
                     SurfaceCard(Modifier.fillMaxWidth()) {
@@ -253,6 +300,15 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, content
             }, Modifier.fillMaxWidth().padding(16.dp), icon = Icons.Filled.Add)
         }
     }
+    if (scanning) BarcodeScannerDialog(
+        onCode = { code ->
+            scanning = false
+            vm.run {
+                if (vm.repo.setEan(productId, code)) { vm.say("Código $code guardado"); reload++ } else vm.say("Ese código no es válido")
+            }
+        },
+        onDismiss = { scanning = false },
+    )
 }
 
 /** Lo que cuesta un producto (o su equivalente) en una de tus tiendas. */

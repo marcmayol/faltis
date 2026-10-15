@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Sin permiso de red: todo funciona en el movil (T3, T8). -->
+    <!-- Solo para leer el codigo de barras de un producto (ficha nutricional); se pide al usarlo. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:name=".FaltisApp"
         android:allowBackup="true"

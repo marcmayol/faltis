@@ -121,5 +121,6 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.text)
     implementation(libs.mlkit.barcode)
+    implementation(libs.coil.compose)
     implementation(libs.pdfbox.android)
 }

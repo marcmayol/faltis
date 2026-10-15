@@ -83,6 +83,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val settings: StateFlow<Settings?> = repo.settings.stateIn(scope, SharingStarted.Eagerly, null)
     val stores: StateFlow<List<StoreEntity>> = repo.dao.favoriteStores().stateIn(scope, SharingStarted.Eagerly, emptyList())
     val lists: StateFlow<List<ListEntity>> = repo.dao.lists().stateIn(scope, SharingStarted.Eagerly, emptyList())
+    /** Articulos abiertos de cada lista (id de lista -> cuantos). */
+    val listCounts: StateFlow<Map<Long, Int>> = repo.dao.listCounts().map { l -> l.associate { it.listId to it.count } }
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
     val priceBook: StateFlow<PriceBook?> = repo.priceBook.stateIn(scope, SharingStarted.Eagerly, null)
     val purchases = repo.dao.purchases().stateIn(scope, SharingStarted.Eagerly, emptyList())
     val sampleCount = repo.dao.sampleCount().stateIn(scope, SharingStarted.Eagerly, 0)
@@ -169,6 +172,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun selectList(id: Long) = run { repo.setActiveList(id) }
     fun newList(name: String) = run { repo.createList(name) }
     fun renameList(l: ListEntity, name: String) = run { repo.dao.updateList(l.copy(name = name)) }
+    fun toggleFavorite(p: com.marcmayol.faltis.core.ProductRef) = run {
+        repo.setFavorite(p.id, !p.isFavorite)
+        say(if (p.isFavorite) "Quitado de favoritos" else "Guardado en favoritos")
+    }
+    fun deleteList(l: ListEntity) = run {
+        repo.deleteList(l.id)
+        say("Lista «${l.name}» borrada")
+    }
+    /** Abre una lista; la de un super la crea si aun no existe. */
+    fun openStoreList(store: com.marcmayol.faltis.data.StoreEntity, then: () -> Unit) = run {
+        repo.setActiveList(repo.storeList(store).id)
+        then()
+    }
 
     fun toggleCart(n: NeedEntity) = run { repo.toggleCart(n, n.listId) }
 
@@ -343,7 +359,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * «Tu lista en otros súper»: ademas de tus tiendas, una tienda virtual por cada cadena con web
+     * (precio de la cadena, id negativo). Solo se calcula mientras la pantalla lo pide.
+     */
+    val everywhere = MutableStateFlow(false)
+    val compareEverywhere: StateFlow<Comparison?> = combine(everywhere, settings, activeNeeds, stores, priceBook) { on, s, needs, st, book ->
+        if (!on || s == null || book == null) return@combine null
+        val mine = with(repo) { st.map { it.toRef() } }
+        val myChains = st.map { it.chainId }.toSet()
+        val virtual = com.marcmayol.faltis.core.WebCatalog.chains.filter { it !in myChains }.sorted().mapIndexed { i, c ->
+            com.marcmayol.faltis.core.StoreRef(-(i + 1L), c, com.marcmayol.faltis.core.Chains.byId(c).name, 1000 + i)
+        }
+        BasketComparator(book).compare(with(repo) { needs.map { it.toRef() } }, mine + virtual, Instant.now(), s.includePromos)
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Trae de la web los precios de la lista en todas las cadenas (para [compareEverywhere]). */
+    fun fetchEverywhere(force: Boolean = false) = run {
+        if (settings.value?.webPrices != true) return@run
+        if (!webLock.tryLock()) return@run
+        _webBusy.value = true
+        try {
+            val open = activeNeeds.value.filter { it.state != NeedState.BOUGHT.name }
+            repo.refreshWebPrices(open, force, everywhere = true)
+        } catch (_: Exception) {
+            say("No se han podido leer todos los precios web. ¿Hay conexión?")
+        } finally {
+            _webBusy.value = false
+            webLock.unlock()
+        }
+    }
+
+    /** «Comparar en otros súper» de un producto. Devuelve -1 si los precios web estan apagados. */
+    suspend fun searchEverywhere(p: com.marcmayol.faltis.core.ProductRef): Int {
+        _webBusy.value = true
+        return try { repo.searchEverywhere(p) } catch (_: Exception) { 0 } finally { _webBusy.value = false }
+    }
+
     init {
+        // Productos web guardados con una clasificacion vieja: se corrigen al arrancar.
+        scope.launch { repo.reclassifyWebProducts() }
         // Al añadir algo a la lista (o activar la opcion), se traen sus precios web si no son de hoy.
         scope.launch {
             combine(

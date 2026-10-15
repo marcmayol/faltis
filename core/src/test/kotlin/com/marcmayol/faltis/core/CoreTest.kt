@@ -110,6 +110,20 @@ class ComparatorAndSampleTest {
         val manual = second.basket.priced.filter { it.need.id in c.commonNeedIds }.sumOf { it.costCents } -
             c.best.basket.priced.filter { it.need.id in c.commonNeedIds }.sumOf { it.costCents }
         assertEquals(manual, second.deltaCents)
+
+        // Repartir: nunca cuesta mas que la mejor tienda sola, y cada articulo va a la mas barata de las dos.
+        val split = BasketSplit.best(c, minSaving = 0)!!
+        assertEquals(c.best.commonCents - split.totalCents, split.savingCents)
+        assertTrue(split.savingCents >= 0)
+        assertEquals(c.commonNeedIds.size, split.inFirst.size + split.inSecond.size)
+        val byStore = c.ranked.associate { it.basket.store.id to it.basket }
+        split.inSecond.forEach { p -> assertTrue(p.costCents < byStore.getValue(split.first.id).priceFor(p.need.id)!!.costCents) }
+        assertEquals(null, BasketSplit.best(c, minSaving = Long.MAX_VALUE))
+
+        // Articulo a articulo: ofertas de la mas barata a la mas cara.
+        val items = BasketSplit.itemOffers(c.ranked.map { it.basket })
+        assertEquals(needs.size, items.size)
+        items.forEach { it.offers.zipWithNext().forEach { (x, y) -> assertTrue(x.second.costCents <= y.second.costCents) } }
     }
 }
 

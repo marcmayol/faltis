@@ -31,6 +31,8 @@ data class ProductEntity(
     val ean: String? = null,
     val isSample: Boolean = false,
     val fromTicket: Boolean = false,
+    val imageUrl: String? = null,
+    val isFavorite: Boolean = false,
 )
 
 @Entity(tableName = "price_obs", indices = [Index("productId"), Index("storeId"), Index("purchaseId")])
@@ -146,3 +148,20 @@ data class ShareLineEntity(
     val day: String,
     val createdAtMillis: Long,
 )
+
+/**
+ * Ficha de Open Food Facts de un producto, guardada para no pedirla cada vez. [body] es la
+ * respuesta tal cual (se interpreta al leer); null si no se encontro. [approximate]: hallada
+ * por nombre, no por codigo de barras.
+ */
+@Entity(tableName = "nutrition")
+data class NutritionEntity(
+    @PrimaryKey val productId: Long,
+    val ean: String?,
+    val body: String?,
+    val approximate: Boolean,
+    val fetchedAtMillis: Long,
+)
+
+/** Cuantos articulos abiertos tiene cada lista. */
+data class ListCount(val listId: Long, val count: Int)

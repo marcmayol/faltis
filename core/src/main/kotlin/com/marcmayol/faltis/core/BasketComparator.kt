@@ -76,6 +76,60 @@ class BasketComparator(private val book: PriceBook) {
 
     companion object {
         const val MIN_COVERAGE = 0.8
+        /** Por debajo de 1 € no compensa ir a dos tiendas. */
+        const val MIN_SPLIT_SAVING = 100L
+    }
+}
+
+/** Lo que cuesta un articulo en cada tienda, de la mas barata a la mas cara. */
+data class ItemOffers(val need: NeedRef, val offers: List<Pair<StoreRef, PricedNeed>>) {
+    val best: Pair<StoreRef, PricedNeed>? get() = offers.firstOrNull()
+    /** Lo que cuesta de mas en la siguiente tienda (null con una sola oferta). */
+    val gapCents: Long? get() = offers.getOrNull(1)?.let { it.second.costCents - offers[0].second.costCents }
+}
+
+/** Comprar cada articulo comun en la mas barata de dos tiendas. */
+data class SplitPlan(
+    val first: StoreRef,
+    val second: StoreRef,
+    val inFirst: List<PricedNeed>,
+    val inSecond: List<PricedNeed>,
+    val totalCents: Long,
+    /** Frente a hacerlo todo en la mejor tienda, sobre los mismos articulos. */
+    val savingCents: Long,
+)
+
+object BasketSplit {
+    /** Articulo a articulo, con todas las tiendas que le ponen precio. */
+    fun itemOffers(baskets: List<StoreBasket>): List<ItemOffers> {
+        val needs = baskets.flatMap { b -> b.results.map { r -> if (r is NeedPriceResult.Priced) r.value.need else (r as NeedPriceResult.Missing).need } }
+            .distinctBy { it.id }
+        return needs.map { n ->
+            ItemOffers(n, baskets.mapNotNull { b -> b.priceFor(n.id)?.let { b.store to it } }.sortedWith(compareBy({ it.second.costCents }, { it.first.position })))
+        }
+    }
+
+    /**
+     * La mejor pareja de tiendas para repartir la compra, sobre los articulos con precio en todas
+     * (los mismos que el ranking). null si ninguna pareja ahorra al menos [BasketComparator.MIN_SPLIT_SAVING].
+     */
+    fun best(r: Comparison.Ranking, minSaving: Long = BasketComparator.MIN_SPLIT_SAVING): SplitPlan? {
+        val stores = r.ranked.map { it.basket }
+        var best: SplitPlan? = null
+        for (i in stores.indices) for (j in i + 1 until stores.size) {
+            val a = stores[i]; val b = stores[j]
+            val inA = mutableListOf<PricedNeed>(); val inB = mutableListOf<PricedNeed>()
+            for (id in r.commonNeedIds) {
+                val pa = a.priceFor(id) ?: continue
+                val pb = b.priceFor(id) ?: continue
+                if (pb.costCents < pa.costCents) inB += pb else inA += pa
+            }
+            if (inA.isEmpty() || inB.isEmpty()) continue
+            val total = inA.sumOf { it.costCents } + inB.sumOf { it.costCents }
+            val saving = r.best.commonCents - total
+            if (best == null || saving > best.savingCents) best = SplitPlan(a.store, b.store, inA, inB, total, saving)
+        }
+        return best?.takeIf { it.savingCents >= minSaving }
     }
 }
 
