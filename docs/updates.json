@@ -1,8 +1,8 @@
 {
-  "versionCode": 11,
-  "versionName": "0.7.0",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.7.0/faltis-v0.7.0.apk",
-  "sha256": "b87233f78c1cce277b017771d3dc36c7f86b24ae0f67ff7aeab838fc009e369a",
-  "notas": "Tus listas agrupadas por súper en el inicio. Ficha nutricional y alérgenos de cada producto (Open Food Facts) con lector de código de barras. Favoritos y fotos de los productos. Compara tu lista en todos los supermercados, artículo a artículo o repartiendo entre dos tiendas, y cada producto en otros súper por precio por kilo o litro. Modo compra con fotos, precios y total estimado.",
+  "versionCode": 12,
+  "versionName": "0.7.1",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.7.1/faltis-v0.7.1.apk",
+  "sha256": "ff16119b19e75bb7cbe8eb1cce1ef25168d3710aedbfdb20284e612fa67c225f",
+  "notas": "En el modo compra puedes cambiar la cantidad de cada artículo con los botones – y +, sin salir del pasillo.",
   "check_horas": 24
 }
