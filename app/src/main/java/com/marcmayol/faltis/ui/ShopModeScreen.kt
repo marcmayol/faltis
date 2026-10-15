@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -174,10 +177,45 @@ private fun BigRow(n: com.marcmayol.faltis.data.NeedEntity, price: com.marcmayol
             Text(name, style = Type.row.copy(fontSize = 20.sp, textDecoration = if (done) TextDecoration.LineThrough else null))
             // Que coger: el producto concreto (fijado o el mas barato) para no dudar delante del estante.
             price?.let { Text(it.product.name + if (it.packs > 1) " ×${it.packs}" else "", style = Type.secondary.copy(fontSize = 13.sp), maxLines = 2) }
+            // Cuantos: se cambia sin salir del pasillo. Debajo del nombre para que con letra grande no apriete la fila.
+            if (!done) QtyStepper(n.qty, n.unit, Modifier.padding(top = 8.dp)) { q -> vm.saveNeed(n.copy(qty = q, updatedAtMillis = System.currentTimeMillis())) }
+            else Text(qty, style = Type.secondary.copy(fontSize = 13.sp))
         }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(qty, style = Type.price.copy(color = Faltis.Ink2, fontSize = 16.sp))
-            price?.let { Text(euros(it.costCents), style = Type.price.copy(fontSize = 15.sp)) }
-        }
+        price?.let { Text(euros(it.costCents), style = Type.price.copy(fontSize = 16.sp)) }
     }
+}
+
+/** Paso de los botones segun la unidad: 1 ud, medio kilo o litro, 100 g o ml. */
+private fun stepFor(unit: String): Double = when (unit) {
+    "kg", "l" -> 0.5
+    "g", "ml" -> 100.0
+    "cl" -> 25.0
+    else -> 1.0
+}
+
+/** «– N +» del modo compra. En el minimo, «–» se apaga (para quitarlo, desliza en la lista). */
+@Composable
+private fun QtyStepper(qty: Double, unit: String, modifier: Modifier = Modifier, onChange: (Double) -> Unit) {
+    val step = stepFor(unit)
+    val canLess = qty - step >= step - 1e-9
+    Row(
+        modifier.clip(RoundedCornerShape(14.dp)).background(Faltis.Elevated),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepButton(Icons.Filled.Remove, "Menos", canLess) { onChange(qty - step) }
+        // Ancho minimo: que los botones no bailen de una fila a otra.
+        Text(
+            "${qtyText(qty)} $unit", style = Type.price.copy(fontSize = 16.sp), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.widthIn(min = 64.dp).padding(horizontal = 4.dp),
+        )
+        StepButton(Icons.Filled.Add, "Más", true) { onChange(qty + step) }
+    }
+}
+
+@Composable
+private fun StepButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, label, tint = if (enabled) Faltis.Saving else Faltis.Ink3.copy(alpha = 0.4f), modifier = Modifier.size(22.dp)) }
 }
