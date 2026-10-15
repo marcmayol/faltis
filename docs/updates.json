@@ -1,8 +1,8 @@
 {
-  "versionCode": 10,
-  "versionName": "0.6.0",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.6.0/faltis-v0.6.0.apk",
-  "sha256": "c4e9368523c26a8a98999ece8ea25cb9dc64415ae6b30a5d786f3d0432f02734",
-  "notas": "Precios compartidos: Faltis comparte los precios de las líneas de tus tickets, sueltos y sin nada que te identifique, para que todos veamos lo que cuesta cada cosa en cada tienda. Se desactiva en Ajustes. Nueva política de privacidad en marcmayol.com/faltis/privacidad.html.",
+  "versionCode": 11,
+  "versionName": "0.7.0",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.7.0/faltis-v0.7.0.apk",
+  "sha256": "b87233f78c1cce277b017771d3dc36c7f86b24ae0f67ff7aeab838fc009e369a",
+  "notas": "Tus listas agrupadas por súper en el inicio. Ficha nutricional y alérgenos de cada producto (Open Food Facts) con lector de código de barras. Favoritos y fotos de los productos. Compara tu lista en todos los supermercados, artículo a artículo o repartiendo entre dos tiendas, y cada producto en otros súper por precio por kilo o litro. Modo compra con fotos, precios y total estimado.",
   "check_horas": 24
 }
