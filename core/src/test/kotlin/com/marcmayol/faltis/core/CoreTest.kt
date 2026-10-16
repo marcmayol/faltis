@@ -228,6 +228,18 @@ class TicketParserTest {
         assertEquals(LineCheck.OK, t.lines.first { it.description == "LECHE ENTERA" }.check)
     }
 
+    @Test fun `Suma en catalan - el pie de pago no son productos`() {
+        val t = parser.parse(fixture("suma_catalan.txt"))
+        assertEquals("suma", t.chainId)
+        assertEquals(4, t.lines.size, lines(t))
+        assertEquals(1441L, t.totalCents)
+        assertTrue(t.balanced, lines(t))
+        assertEquals(LocalDate.of(2026, 10, 16), t.date)
+        // Pagado en efectivo: «Pagament 20,00» y «Canvi 5,59» no coinciden con el total y tampoco son productos.
+        val cash = parser.parse(fixture("suma_catalan.txt").replace("Pagament 14,41", "Efectiu 20,00\nPagament 20,00").replace("Canvi 0,00", "Canvi 5,59"))
+        assertEquals(4, cash.lines.size, lines(cash))
+    }
+
     @Test fun `numero de factura y hora`() {
         val t = parser.parse(fixture("mercadona_real.txt"))
         assertEquals("1234-011-123456", t.invoice)

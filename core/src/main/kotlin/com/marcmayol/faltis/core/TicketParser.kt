@@ -111,7 +111,9 @@ class TicketParser(private val taxonomy: Taxonomy) {
     private val skipWords = Regex(
         "\\b(IVA|I\\.V\\.A|BASE|CUOTA|TARJETA BANCARIA|TARJ|VISA|MASTERCARD|CAMBIO|ENTREGADO|EFECTIVO|SUBTOTAL|" +
             "N\\.?I\\.?F|C\\.?I\\.?F|FACTURA|TELEFONO|TEL|OP:|TPV|AUT|AID|ARC|IMPORTE|DESCRIPCION|P\\. ?UNIT|" +
-            "GRACIAS|DEVOLUCION|SE ADMITEN|COPIA|CLIENTE|LEIDA|CONTACTLESS|N\\.C|S\\.A)\\b",
+            "GRACIAS|DEVOLUCION|SE ADMITEN|COPIA|CLIENTE|LEIDA|CONTACTLESS|N\\.C|S\\.A|" +
+            // Pie de pago, tambien en catalan (Suma, supermercados de Baleares y Cataluña).
+            "A PAGAR|TARGETA|PAGAMENT|CANVI|ENTREGAT|EFECTIU|LINIES)\\b",
     )
 
     fun parse(text: String, chainHint: String? = null, lookup: AbbreviationLookup? = null): ParsedTicket {
@@ -137,6 +139,8 @@ class TicketParser(private val taxonomy: Taxonomy) {
                 if (tm != null) { total = cents(tm.groupValues[1]); continue }
             }
             if (key.startsWith("TOTAL")) continue
+            // Tras el total, una linea que lo repite es el pago ("A PAGAR", "Targeta", "Pagament"), no un producto.
+            if (total != null && endPrice.find(line)?.let { cents(it.groupValues[1]) } == total) continue
             importeRe.find(key)?.let { if (secondTotal == null) secondTotal = cents(it.groupValues[1]) }
 
             // Linea de peso: "1,284 KG X 1,99 €/KG 2,56" (sola o con la descripcion delante).

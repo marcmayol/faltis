@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -127,6 +128,17 @@ fun TicketCaptureScreen(vm: AppViewModel, storeHint: Long?, onBack: () -> Unit, 
     val photo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
         if (uri != null) process(PriceSource.TICKET_PHOTO) { TextSources.fromImage(context, uri) }
     }
+    // Foto con la camara del movil: va a la cache y se borra al leerla (la foto no se guarda).
+    val shot = remember { java.io.File(context.cacheDir, "tickets/ticket.jpg") }
+    val shotUri = remember { androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fotos", shot.apply { parentFile?.mkdirs() }) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) process(PriceSource.TICKET_PHOTO) { try { TextSources.fromImage(context, shotUri) } finally { shot.delete() } }
+    }
+    // Faltis declara el permiso de camara (lector de codigos), asi que Android lo exige tambien para abrir la camara del sistema.
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) camera.launch(shotUri)
+        else error = "Sin permiso de cámara no se puede hacer la foto. Puedes elegirla de la galería o darlo en los ajustes del móvil."
+    }
     val pdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) process(PriceSource.TICKET_PDF) { TextSources.fromPdf(context, uri) }
     }
@@ -143,6 +155,11 @@ fun TicketCaptureScreen(vm: AppViewModel, storeHint: Long?, onBack: () -> Unit, 
                         CircularProgressIndicator(color = Faltis.Saving)
                         Text("  Leyendo el ticket…", style = Type.body)
                     }
+                }
+                CaptureOption(Icons.Filled.PhotoCamera, "Hacer foto del ticket", "Con la cámara del móvil. Se lee en el móvil y la foto no se guarda.") {
+                    error = null
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) camera.launch(shotUri)
+                    else cameraPermission.launch(android.Manifest.permission.CAMERA)
                 }
                 CaptureOption(Icons.Filled.Image, "Elegir foto del ticket", "De la galería. Se lee en el móvil y la foto no se guarda.") {
                     photo.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
