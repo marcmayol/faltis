@@ -76,8 +76,12 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
     LaunchedEffect(storeId) { if (storeId != 0L) vm.selectStore(storeId) }
 
     val tax = vm.repo.taxonomy
-    val pending = ui.needs.filter { it.state == NeedState.PENDING.name }
-    val inCart = ui.needs.filter { it.state == NeedState.IN_CART.name }.sortedBy { it.cartOrder }
+    // En este super, lo que es de aqui o de cualquiera; lo marcado para otro super se queda en la lista.
+    val book by vm.priceBook.collectAsState()
+    val here = ui.needs.filter { n -> chainOfNeed(n, book).let { it == null || it == store?.chainId } }
+    val elsewhere = ui.needs.size - here.size
+    val pending = here.filter { it.state == NeedState.PENDING.name }
+    val inCart = here.filter { it.state == NeedState.IN_CART.name }.sortedBy { it.cartOrder }
     val ordered = AisleLearner.order(pending, { vm.repo.keyFor(it) }, { tax.byId(it.typeId)?.categoryOrder ?: 999 }, aisle)
     val total = ui.needs.size
     val priced: (com.marcmayol.faltis.data.NeedEntity) -> com.marcmayol.faltis.core.PricedNeed? = { n -> (vm.priceOf(n.id) as? NeedPriceResult.Priced)?.value }
@@ -116,7 +120,10 @@ fun ShopModeScreen(vm: AppViewModel, onBack: () -> Unit, onTicket: (storeId: Lon
             }
             GradientBar(if (total == 0) 0f else inCart.size.toFloat() / total, Modifier.padding(top = 10.dp), 8.dp)
             LazyColumn(Modifier.weight(1f).padding(top = 14.dp), contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (pending.isEmpty() && inCart.isEmpty()) item { EmptyState("Nada pendiente", "Tu lista está vacía.") }
+                if (pending.isEmpty() && inCart.isEmpty()) item { EmptyState("Nada pendiente aquí", if (elsewhere > 0) "Lo que queda en la lista es para otros súper." else "Tu lista está vacía.") }
+                if (elsewhere > 0 && (pending.isNotEmpty() || inCart.isNotEmpty())) item {
+                    Text("${plural(elsewhere, "artículo es", "artículos son")} de otros súper y no sale aquí.", style = Type.secondary.copy(fontSize = 13.sp))
+                }
                 if (aisle.isNotEmpty()) {
                     if (ordered.isNotEmpty()) item { SectionLabel("Siguiente, en tu orden de pasillos") }
                     items(ordered, key = { it.id }) { n -> BigRow(n, priced(n), vm, done = false, highlight = n == ordered.first()) { vm.toggleCart(n) } }
@@ -195,7 +202,7 @@ private fun stepFor(unit: String): Double = when (unit) {
 
 /** «– N +» del modo compra. En el minimo, «–» se apaga (para quitarlo, desliza en la lista). */
 @Composable
-private fun QtyStepper(qty: Double, unit: String, modifier: Modifier = Modifier, onChange: (Double) -> Unit) {
+fun QtyStepper(qty: Double, unit: String, modifier: Modifier = Modifier, onChange: (Double) -> Unit) {
     val step = stepFor(unit)
     val canLess = qty - step >= step - 1e-9
     Row(

@@ -229,6 +229,16 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, onCompa
                             SectionLabel(vm.repo.taxonomy.byId(p.typeId)?.let { "${it.categoryName} · ${it.name}" } ?: "sin tipo", color = Faltis.Saving)
                             Text(p.name, style = Type.screenTitle.copy(fontSize = 24.sp), modifier = Modifier.padding(top = 6.dp))
                             Text(listOfNotNull(p.brand, formatLabel(p).ifBlank { null }, Chains.byId(p.chainId).name).joinToString(" · "), style = Type.secondary.copy(fontSize = 14.sp))
+                            shelfPrice(b, p)?.let { sp ->
+                                Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(euros(sp.cents), style = Type.price.copy(fontSize = 26.sp))
+                                    sp.unitCents?.takeIf { p.netUnit != null }?.let { Text("${euros(it)}${Packs.unitPriceLabel(p.netUnit).removePrefix("€")}", style = Type.secondary.copy(fontSize = 14.sp)) }
+                                }
+                                if (sp.webOffer) {
+                                    OfferBadge(Modifier.padding(top = 6.dp))
+                                    Text(WEB_OFFER_NOTICE, style = Type.secondary.copy(fontSize = 12.sp), modifier = Modifier.padding(top = 4.dp))
+                                }
+                            }
                         }
                     }
                     SecondaryButton("Comparar en otros súper", onCompare, Modifier.fillMaxWidth().padding(top = 14.dp), icon = Icons.Filled.Search)
@@ -291,13 +301,16 @@ fun ProductScreen(vm: AppViewModel, productId: Long, onBack: () -> Unit, onCompa
                     }
                 }
             }
-            PrimaryButton("Añadir a la lista", {
-                vm.run {
-                    val listId = vm.repo.ensureActiveList()
-                    vm.repo.addPinned(listId, p.name, p.typeId, p.id)
-                    vm.say("«${p.name}» añadido a la lista")
-                }
-            }, Modifier.fillMaxWidth().padding(16.dp), icon = Icons.Filled.Add)
+            // Abajo, fijo: cuantos hay en la lista activa, como en el catalogo.
+            val needs by vm.activeNeeds.collectAsState()
+            val lists by vm.lists.collectAsState()
+            val listName = lists.firstOrNull { it.id == settings?.activeListId }?.name ?: "tu lista"
+            val qty = needs.firstOrNull { it.pinnedProductId == p.id }?.qty ?: 0.0
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (qty > 0) Text("${qtyText(qty)} en «$listName»", style = Type.secondary.copy(fontSize = 13.sp))
+                if (qty > 0) CatalogQty(qty, Modifier.fillMaxWidth().heightIn(min = 52.dp)) { vm.setInList(p.id, it) }
+                else PrimaryButton("Añadir a «$listName»", { vm.setInList(p.id, 1.0); vm.say("«${p.name.substringBefore(" · ")}» añadido a «$listName»") }, Modifier.fillMaxWidth(), icon = Icons.Filled.Add)
+            }
         }
     }
     if (scanning) BarcodeScannerDialog(

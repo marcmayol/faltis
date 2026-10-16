@@ -71,6 +71,8 @@ interface FaltisDao {
     @Update suspend fun updateNeeds(n: List<NeedEntity>)
     @Query("DELETE FROM need WHERE id = :id") suspend fun deleteNeed(id: Long)
     @Query("SELECT COALESCE(MAX(position), 0) FROM need WHERE listId = :listId") suspend fun maxPosition(listId: Long): Int
+    /** Articulos abiertos de todas las listas (para el inicio y las cantidades del catalogo). */
+    @Query("SELECT * FROM need WHERE state != 'BOUGHT' ORDER BY position, id") fun allOpenNeeds(): Flow<List<NeedEntity>>
 
     // ── Pasillos ──
     @Query("SELECT * FROM aisle_order WHERE storeId = :storeId") fun aisle(storeId: Long): Flow<List<AisleOrderEntity>>
@@ -128,7 +130,7 @@ interface FaltisDao {
         AisleOrderEntity::class, PurchaseEntity::class, PurchaseLineEntity::class, AbbreviationEntity::class,
         ShareLineEntity::class, NutritionEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class FaltisDb : RoomDatabase() {
@@ -171,6 +173,21 @@ abstract class FaltisDb : RoomDatabase() {
                 )
                 db.execSQL("ALTER TABLE product ADD COLUMN imageUrl TEXT")
                 db.execSQL("ALTER TABLE product ADD COLUMN isFavorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /**
+         * v6: el super va en cada articulo, no en la lista. Lo de las antiguas listas de un super
+         * se queda marcado con ese super y las listas pasan a ser normales.
+         */
+        val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE need ADD COLUMN chainId TEXT")
+                db.execSQL(
+                    "UPDATE need SET chainId = (SELECT s.chainId FROM shopping_list l JOIN store s ON s.id = l.storeId WHERE l.id = need.listId) " +
+                        "WHERE listId IN (SELECT id FROM shopping_list WHERE storeId IS NOT NULL)",
+                )
+                db.execSQL("UPDATE shopping_list SET storeId = NULL")
             }
         }
     }

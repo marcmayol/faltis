@@ -95,7 +95,7 @@ object WebCatalog {
             priceCents = (euros * 100).roundToLong(),
             netQty = if (bulk) null else p["unit_size"].num(),
             netUnit = unit,
-            imageUrl = h["thumbnail"].text()?.takeIf { it.startsWith("https://") },
+            imageUrl = https(h["thumbnail"].text()),
         )
     }
 
@@ -112,6 +112,9 @@ object WebCatalog {
             brand = h["brandName"].text()?.replace("®", "")?.trim(),
             priceCents = (euros * 100).roundToLong(),
             netQty = format?.first, netUnit = format?.second,
+            // La foto "primary" de Scene7; sin tamano sale a ~1500 px, se pide a 300.
+            imageUrl = https((h["assets"] as? JsonArray)?.mapNotNull { it as? JsonObject }
+                ?.firstOrNull { it["type"].text() == "primary" }?.get("url").text()?.let { if ('?' in it) it else "$it?wid=300&hei=300" }),
         )
     }
 
@@ -128,18 +131,22 @@ object WebCatalog {
         val name = data["description"].text() ?: data["name"].text() ?: return@mapNotNull null
         val brand = data["brand"].obj()?.get("name").text()
         val perUnit = h["priceData"].obj()?.get("unitPriceUnitType").text()
+        // Consum: su "imageURL" a veces da 404 y las de "media" no. masymas las da a 135 px: se piden a 300.
+        val image = ((h["media"] as? JsonArray)?.mapNotNull { it as? JsonObject }?.filter { it["type"].text() == "P" }
+            ?.minByOrNull { it["order"].num() ?: 0.0 }?.get("url").text() ?: data["imageURL"].text())
+            ?.replace("/135x135/", "/300x300/")
         // BM marca "kg." cuando el precio ya es por kilo.
         if (h["priceData"].obj()?.get("priceUnitType").text()?.lowercase()?.startsWith("kg") == true) {
-            return@mapNotNull product(chain, h["code"].text(), name, brand, euros, null, QtyUnit.KG, offer != null)
+            return@mapNotNull product(chain, h["code"].text(), name, brand, euros, null, QtyUnit.KG, offer != null, image)
         }
         // productType 2 y 3: al peso; el importe de la pieza es aproximado, vale el precio por kg.
         val bulkUnit = perUnit?.let { unitOf(it) }
         if ((h["productType"].num() ?: 1.0) > 1.0 && bulkUnit != null) {
             val perKg = value["centUnitAmount"].num() ?: return@mapNotNull null
-            return@mapNotNull product(chain, h["code"].text(), name, brand, perKg, null, bulkUnit, offer != null)
+            return@mapNotNull product(chain, h["code"].text(), name, brand, perKg, null, bulkUnit, offer != null, image)
         }
         val net = Packs.fromText(name) ?: fromUnitPrice(euros, value["centUnitAmount"].num(), perUnit)
-        product(chain, h["code"].text(), name, brand, euros, net?.first, net?.second, offer != null)
+        product(chain, h["code"].text(), name, brand, euros, net?.first, net?.second, offer != null, image)
     }
 
     fun parseDia(body: String): List<WebProduct> = array(body, "search_items").mapNotNull { h ->
@@ -147,7 +154,8 @@ object WebCatalog {
         val euros = p["price"].num() ?: return@mapNotNull null
         val name = h["display_name"].text() ?: return@mapNotNull null
         val net = Packs.fromText(name) ?: fromUnitPrice(euros, p["price_per_unit"].num(), p["measure_unit"].text())
-        product("dia", h["sku_id"].text() ?: h["object_id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, p["is_promo_price"].bool() == true)
+        product("dia", h["sku_id"].text() ?: h["object_id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, p["is_promo_price"].bool() == true,
+            h["image"].text()?.let { if (it.startsWith("/")) "https://www.dia.es$it" else it })
     }
 
     fun parseCarrefour(body: String): List<WebProduct> = catalog(body).mapNotNull { h ->
@@ -160,7 +168,8 @@ object WebCatalog {
         } else {
             Packs.fromText(name) ?: h["unit_conversion_factor"].num()?.let { f -> unitOf(h["measure_unit"].text() ?: "")?.let { f to it } }
         }
-        product("carrefour", h["product_id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, list != null && list > euros + 0.001)
+        product("carrefour", h["product_id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, list != null && list > euros + 0.001,
+            h["image_path"].obj()?.values?.firstNotNullOfOrNull { it.text() } ?: h["image_for_play_service"].text())
     }
 
     fun parseCondis(body: String): List<WebProduct> = catalog(body).mapNotNull { h ->
@@ -175,7 +184,10 @@ object WebCatalog {
         val net = h["pum"].text()?.split('/')?.let { parts ->
             fromUnitPrice(euros, parts[0].filter { it.isDigit() || it == ',' || it == '.' }.replace(',', '.').toDoubleOrNull(), parts.getOrNull(1))
         } ?: Packs.fromText(name)
-        product("condis", h["id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, regular != null && regular > euros + 0.001)
+        // "images" trae "/images/catalog/large/704049.jpg", que ya no se sirve: la web usa su CDN con el mismo archivo.
+        val file = ((h["images"] as? JsonArray)?.firstOrNull().text() ?: (h["altImages"] as? JsonArray)?.firstOrNull().text())?.substringAfterLast('/')
+        product("condis", h["id"].text(), name, h["brand"].text(), euros, net?.first, net?.second, regular != null && regular > euros + 0.001,
+            file?.let { "https://cdn.condis.es/fit-in/300x300/es/products/$it" })
     }
 
     /**
@@ -195,12 +207,14 @@ object WebCatalog {
             val euros = Regex("price-offer-now'>\\s*([\\d.,]+)").find(tile)?.groupValues?.get(1)?.let(::euro)
                 ?: item["price"].num() ?: return@mapNotNull null
             val offer = "price-offer-before" in tile
+            // La foto de 200 px; la web la escribe con doble barra ("...es//images/...").
+            val image = Regex("src='(https://[^']+)'[^>]*class='product-img'").find(tile)?.groupValues?.get(1)?.replace(Regex("(?<!:)//+"), "/")
             if ("weight-icon" in tile || "al peso" in Text.normalize(name)) {
-                return@mapNotNull product(chain, item["item_id"].text(), name, item["item_brand"].text(), euros, null, QtyUnit.KG, offer)
+                return@mapNotNull product(chain, item["item_id"].text(), name, item["item_brand"].text(), euros, null, QtyUnit.KG, offer, image)
             }
             // "pack 4x100 g", "brik 1 litro": el formato va al final, tras la ultima coma.
             val net = Packs.fromText(name.substringAfterLast(", ")) ?: Packs.fromText(name)
-            product(chain, item["item_id"].text(), name, item["item_brand"].text(), euros, net?.first, net?.second, offer)
+            product(chain, item["item_id"].text(), name, item["item_brand"].text(), euros, net?.first, net?.second, offer, image)
         }
     }
 
@@ -223,7 +237,7 @@ object WebCatalog {
         val packaging = p["packaging"].obj()?.get("text").text()
         val net = packaging?.let { Packs.fromText(it) } ?: Packs.fromText(title)
         val brand = d["brand"].obj()?.get("name").text()?.replace("®", "")?.takeIf { it.trim() != "-" }
-        product("lidl", id, listOfNotNull(title, packaging).joinToString(" · "), brand, euros, net?.first, net?.second, offer = true)
+        product("lidl", id, listOfNotNull(title, packaging).joinToString(" · "), brand, euros, net?.first, net?.second, offer = true, image = d["image"].text())
     }
 
     /** Alcampo y Bonpreu (plataforma Ocado). */
@@ -238,6 +252,7 @@ object WebCatalog {
                 val promo = h["promoPrice"].obj()?.get("amount").num()
                 val euros = promo ?: h["price"].obj()?.get("amount").num() ?: return@mapNotNull null
                 val name = h["name"].text() ?: return@mapNotNull null
+                val image = h["image"].obj()?.get("src").text()
                 val unitPrice = h["unitPrice"].obj()
                 val perUnit = unitPrice?.get("price").obj()?.get("amount").num()
                 val unitName = unitPrice?.get("unitName").text()
@@ -249,11 +264,11 @@ object WebCatalog {
                 }
                 // Al peso: el precio es el de una pieza tipica; vale el precio por kg.
                 if (h["type"].text() == "CATCHWEIGHT" && perUnit != null && refUnit == "kg") {
-                    return@mapNotNull product(chain, h["retailerProductId"].text(), name, h["brand"].text(), perUnit, null, QtyUnit.KG, promo != null)
+                    return@mapNotNull product(chain, h["retailerProductId"].text(), name, h["brand"].text(), perUnit, null, QtyUnit.KG, promo != null, image)
                 }
                 val net = h["packSizeDescription"].text()?.let { Packs.fromText(it) } ?: Packs.fromText(name)
                     ?: fromUnitPrice(euros, perUnit, refUnit)
-                product(chain, h["retailerProductId"].text(), name, h["brand"].text(), euros, net?.first, net?.second, promo != null)
+                product(chain, h["retailerProductId"].text(), name, h["brand"].text(), euros, net?.first, net?.second, promo != null, image)
             }
     }
 
@@ -273,7 +288,9 @@ object WebCatalog {
         val measure = h["measurementUnit"].text()
         // "aprox. 605 g": el importe es el de esa bandeja, con su peso aproximado.
         val net = measure?.let { Packs.fromText(it.replace("aprox.", "")) } ?: Packs.fromText(name)
-        product("bonarea", h["identifier"].text(), listOfNotNull(name, measure).joinToString(" · "), null, euros, net?.first, net?.second, (h["discount"].num() ?: 0.0) > 0)
+        product("bonarea", h["identifier"].text(), listOfNotNull(name, measure).joinToString(" · "), null, euros, net?.first, net?.second, (h["discount"].num() ?: 0.0) > 0,
+            // El PNG original pasa de 1700 px; su servidor lo reduce con width y height.
+            (h["image"] as? JsonArray)?.firstOrNull().text()?.let { "https://images.bonarea.com/$it?width=300&height=300" })
     }
 
     /** Ahorramas: rejilla HTML de su buscador. */
@@ -283,13 +300,14 @@ object WebCatalog {
         val brand = Regex("data-brand=\"([^\"]*)\"").find(tile)?.groupValues?.get(1)?.let(::unescape)
         val euros = Regex("class=\"value\" content=\"([\\d.]+)\"").find(tile)?.groupValues?.get(1)?.toDoubleOrNull() ?: return@mapNotNull null
         val offer = "strike-through" in tile
+        val image = Regex("class=\"tile-image\"\\s+src=\"([^\"]+)\"").find(tile)?.groupValues?.get(1)?.replace("&amp;", "&")
         // El precio por unidad bueno; el de "1.0 Kg" va dentro de un comentario.
         val perUnit = Regex("<span class=\"unit-price-per-unit[^\"]*\">\\s*([\\d.,]+)\\s*&euro;/\\s*([A-Za-z]+)").find(tile.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), ""))
         if ("data-hasunitweight=\"true\"" in tile) {
-            return@mapNotNull product("ahorramas", id, name, brand, euros, null, QtyUnit.KG, offer)
+            return@mapNotNull product("ahorramas", id, name, brand, euros, null, QtyUnit.KG, offer, image)
         }
         val net = Packs.fromText(name) ?: perUnit?.let { fromUnitPrice(euros, euro(it.groupValues[1]), it.groupValues[2]) }
-        product("ahorramas", id, name, brand, euros, net?.first, net?.second, offer)
+        product("ahorramas", id, name, brand, euros, net?.first, net?.second, offer, image)
     }
 
     /** Gadis: los productos van en el __NEXT_DATA__ de la pagina de resultados. */
@@ -306,12 +324,13 @@ object WebCatalog {
             val name = (h["commercial_description"] as? JsonArray)?.mapNotNull { it as? JsonObject }
                 ?.firstOrNull { it["language"].text() == "ES" }?.get("value").text() ?: return@mapNotNull null
             val euros = h["price"].num() ?: return@mapNotNull null
+            val image = h["image"].obj()?.let { it["image_thumbnails"].text() ?: it["image"].text() }
             val suffix = (h["price_kilo_litre_suffix"] as? JsonArray)?.firstOrNull()?.obj()?.get("value").text()
             if (h["weight"].text() == "P") {
-                return@mapNotNull product("gadis", h["product_code"].text(), name, h["brand_description"].text(), euros, null, QtyUnit.KG, false)
+                return@mapNotNull product("gadis", h["product_code"].text(), name, h["brand_description"].text(), euros, null, QtyUnit.KG, false, image)
             }
             val net = Packs.fromText(name) ?: fromUnitPrice(euros, h["price_kilo_litre"].num(), suffix?.substringAfterLast(' '))
-            product("gadis", h["product_code"].text(), name, h["brand_description"].text(), euros, net?.first, net?.second, (h["offers"] as? JsonArray)?.isNotEmpty() == true)
+            product("gadis", h["product_code"].text(), name, h["brand_description"].text(), euros, net?.first, net?.second, (h["offers"] as? JsonArray)?.isNotEmpty() == true, image)
         }
     }
 
@@ -323,9 +342,11 @@ object WebCatalog {
         val price = Regex("price--final[^>]*>\\s*<div class=\"price__text[^>]*>\\s*([\\d.,]+)\\s*<span>[^<]*</span>\\s*(<span>\\s*/\\s*kg)?", RegexOption.IGNORE_CASE).find(tile) ?: return@mapNotNull null
         val euros = euro(price.groupValues[1]) ?: return@mapNotNull null
         val offer = "price--previous" in tile
-        if (price.groupValues[2].isNotBlank()) return@mapNotNull product("hiperdino", id, name, brand, euros, null, QtyUnit.KG, offer)
+        // La foto va en data-src (carga diferida); el src es un "pendiente de foto".
+        val image = Regex("data-src=\"(https://cdn\\.hiperdino\\.es/catalog/product/[^\"]+)\"").find(tile)?.groupValues?.get(1)
+        if (price.groupValues[2].isNotBlank()) return@mapNotNull product("hiperdino", id, name, brand, euros, null, QtyUnit.KG, offer, image)
         val net = Packs.fromText(name)
-        product("hiperdino", id, name, brand, euros, net?.first, net?.second, offer)
+        product("hiperdino", id, name, brand, euros, net?.first, net?.second, offer, image)
     }
 
     fun parseFroiz(body: String): List<WebProduct> = array(body, "products").mapNotNull { h ->
@@ -334,13 +355,15 @@ object WebCatalog {
         val base = h["base_price"].num()
         val offer = h["offer"].obj()?.get("price").num() != null || (base != null && base > euros + 0.001)
         val unit = unitOf(h["measurement_unit"].text() ?: "")
+        // "/<cuenta>/<id>/desktop?exp=...&sig=..." de Cloudflare Images: la firma caduca en una hora y sin ella tambien se sirve.
+        val image = h["image"].text()?.substringBefore('?')?.let { if (it.startsWith("/")) "https://imagedelivery.net$it" else it }
         // Al peso: el precio es por kg.
         if (h["fractional"].bool() == true || h["per_unit"].bool() == true) {
-            return@mapNotNull product("froiz", h["id"].text(), name, h["brand_name"].text(), euros, null, unit ?: QtyUnit.KG, offer)
+            return@mapNotNull product("froiz", h["id"].text(), name, h["brand_name"].text(), euros, null, unit ?: QtyUnit.KG, offer, image)
         }
         val ratio = h["measurement_unit_ratio"].num()
         val net = Packs.fromText(name) ?: if (ratio != null && unit != null) fromUnitPrice(1.0, 1.0 / ratio, h["measurement_unit"].text()) else null
-        product("froiz", h["id"].text(), name, h["brand_name"].text(), euros, net?.first, net?.second, offer)
+        product("froiz", h["id"].text(), name, h["brand_name"].text(), euros, net?.first, net?.second, offer, image)
     }
 
     private fun unescape(s: String): String = s.trim()
@@ -355,13 +378,16 @@ object WebCatalog {
         return arr.mapNotNull { it as? JsonObject }
     }
 
-    private fun product(chain: String, id: String?, name: String, brand: String?, euros: Double, qty: Double?, unit: QtyUnit?, offer: Boolean): WebProduct? {
+    private fun product(chain: String, id: String?, name: String, brand: String?, euros: Double, qty: Double?, unit: QtyUnit?, offer: Boolean, image: String? = null): WebProduct? {
         if (id == null || euros <= 0) return null
         val b = brand?.trim()?.takeIf { it.isNotBlank() }
         // Sin la marca, "Leche entera 1 l" de tres marcas serian el mismo producto.
         val full = if (b == null || Text.normalize(b) in Text.normalize(name)) name.trim() else "${name.trim()} · $b"
-        return WebProduct(chain, id, full, b, (euros * 100).roundToLong(), qty, unit, offer)
+        return WebProduct(chain, id, full, b, (euros * 100).roundToLong(), qty, unit, offer, https(image))
     }
+
+    /** Solo fotos por https; las rutas relativas se completan antes con el host de la cadena. */
+    private fun https(url: String?): String? = url?.trim()?.takeIf { it.startsWith("https://") && it.length > 8 }
 
     /** Unidad de un precio de referencia: "1 L", "KILO", "Litro", "kg", "DOCENA"… */
     internal fun unitOf(text: String): QtyUnit? {

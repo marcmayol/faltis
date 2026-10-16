@@ -77,6 +77,8 @@ data class NeedEntity(
     val addedAtMillis: Long,
     val updatedAtMillis: Long,
     val purchaseId: Long? = null,
+    /** Super donde se piensa comprar; null: en cualquiera. Si hay producto fijado, manda su cadena. */
+    val chainId: String? = null,
 )
 
 @Entity(tableName = "aisle_order", primaryKeys = ["storeId", "key"])

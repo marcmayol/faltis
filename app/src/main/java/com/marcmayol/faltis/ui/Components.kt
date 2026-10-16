@@ -161,7 +161,9 @@ fun ChainChip(chainId: String, size: Dp = 30.dp) {
             .semantics { contentDescription = chain.name },
         contentAlignment = Alignment.Center,
     ) {
-        Text(chain.monogram, style = Type.label.copy(color = Faltis.Ink, fontSize = (size.value * 0.34f).sp, letterSpacing = 0.5.sp, fontFamily = ArchivoWide))
+        // El monograma hace de logo: no crece con la letra del sistema, o se sale del recuadro.
+        val scale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        Text(chain.monogram, style = Type.label.copy(color = Faltis.Ink, fontSize = (size.value * 0.34f / scale).sp, letterSpacing = 0.5.sp, fontFamily = ArchivoWide), maxLines = 1, softWrap = false)
     }
 }
 

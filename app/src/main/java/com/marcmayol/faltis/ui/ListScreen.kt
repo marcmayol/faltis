@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -89,6 +90,7 @@ fun ListScreen(
     onTicket: () -> Unit,
     onPickProduct: (needId: Long) -> Unit,
     onStores: () -> Unit,
+    onCatalog: () -> Unit,
     contentPadding: PaddingValues,
     onBack: (() -> Unit)? = null,
 ) {
@@ -99,9 +101,8 @@ fun ListScreen(
     var newListDialog by remember { mutableStateOf(false) }
     var renameDialog by remember { mutableStateOf(false) }
     var importDialog by remember { mutableStateOf(false) }
-    // Texto escrito en una lista general: se pregunta a que lista de que super va.
-    var pendingAdd by remember { mutableStateOf<String?>(null) }
-    val add: (String) -> Unit = { t -> if (ui.list?.storeId != null || stores.isEmpty()) vm.addText(t) else pendingAdd = t }
+    val book by vm.priceBook.collectAsState()
+    val add: (String) -> Unit = { t -> vm.addText(t) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     HaloBackground {
@@ -110,7 +111,7 @@ fun ListScreen(
                 onBack = onBack,
                 listName = ui.list?.name ?: "Compra",
                 lists = lists.map { it.id to it.name },
-                chainOfList = lists.mapNotNull { l -> stores.firstOrNull { it.id == l.storeId }?.let { l.id to it.chainId } }.toMap(),
+                chainOfList = emptyMap(),
                 onSelect = vm::selectList,
                 onNew = { newListDialog = true },
                 onRename = { renameDialog = true },
@@ -136,25 +137,35 @@ fun ListScreen(
                 }
                 if (ui.needs.isEmpty()) {
                     item {
-                        EmptyState("Tu lista está vacía", "Escribe abajo lo que te falta, separado por comas. O toca una sugerencia:") {
+                        EmptyState("Tu lista está vacía", "Elige productos en el catálogo de tu súper, o escribe abajo lo que te falta. O toca una sugerencia:") {
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf("leche", "pan", "huevos", "tomates", "café").forEach { s ->
                                     SecondaryButton(s, { add(s) })
                                 }
                             }
+                            PrimaryButton("Ver productos del súper", onCatalog, Modifier.fillMaxWidth().padding(top = 12.dp), icon = Icons.Filled.GridView)
                         }
                     }
                 }
-                val grouped = ui.needs.groupBy { vm.repo.taxonomy.byId(it.typeId)?.let { t -> Triple(t.categoryOrder, t.categoryName, t.categoryId) } ?: Triple(999, "Sin categoría", null) }
-                    .toSortedMap(compareBy { it.first })
-                grouped.forEach { (cat, needs) ->
-                    item(key = "h-${cat.second}") { CategoryHeader(cat.third, cat.second, Modifier.padding(start = 4.dp, top = 8.dp), extra = "${needs.size}") }
-                    items(needs, key = { it.id }) { n ->
+                // Por super: cada articulo dice donde se compra (el de su producto, o el elegido); lo demas, en cualquiera.
+                val myChains = stores.map { it.chainId }.distinct()
+                val catOrder: (NeedEntity) -> Int = { n -> vm.repo.taxonomy.byId(n.typeId)?.categoryOrder ?: 999 }
+                val bySuper = ui.needs.groupBy { n -> chainOfNeed(n, book) }.entries
+                    .sortedWith(compareBy({ (c, _) -> if (c == null) Int.MAX_VALUE else myChains.indexOf(c).let { if (it < 0) 500 else it } }, { (c, _) -> c ?: "" }))
+                bySuper.forEach { (chain, needs) ->
+                    item(key = "s-${chain ?: "any"}") { SuperHeader(chain, needs.size, Modifier.padding(start = 4.dp, top = 8.dp)) }
+                    items(needs.sortedBy(catOrder), key = { it.id }) { n ->
                         NeedRow(n, vm.priceOf(n.id), vm.repo.taxonomy.byId(n.typeId)?.categoryId, onClick = { editing = n }, onDelete = { vm.deleteNeed(n) })
                     }
                 }
             }
-            AddBar(onAdd = add, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 8.dp))
+            Row(
+                Modifier.padding(start = 16.dp, end = 16.dp, bottom = contentPadding.calculateBottomPadding() + 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SquareIconButton(Icons.Filled.GridView, "Añadir desde el catálogo del súper", onCatalog, tint = Faltis.Brand)
+                AddBar(onAdd = add, modifier = Modifier.weight(1f))
+            }
         }
     }
 
@@ -164,12 +175,6 @@ fun ListScreen(
     if (newListDialog) TextDialog("Nueva lista", "Nombre", "", { newListDialog = false }) { vm.newList(it) }
     if (renameDialog) ui.list?.let { l -> TextDialog("Renombrar lista", "Nombre", l.name, { renameDialog = false }) { vm.renameList(l, it) } }
     if (importDialog) TextDialog("Importar texto", "Tu lista", "", { importDialog = false }, multiline = true, hint = "Una cosa por línea o separadas por comas") { add(it) }
-    pendingAdd?.let { text ->
-        AddWhereDialog(
-            text, stores, lists, ui.list,
-            onStore = { vm.addTextToStore(it, text) }, onHere = { vm.addText(text) }, onDismiss = { pendingAdd = null },
-        )
-    }
 }
 
 @Composable
@@ -344,16 +349,16 @@ private fun NeedRow(n: NeedEntity, price: NeedPriceResult?, categoryId: String?,
         ) {
             ProductImage((price as? NeedPriceResult.Priced)?.value?.product?.imageUrl, categoryId, 44.dp)
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(n.text, style = Type.row, maxLines = 2)
-                    Text("  · ${qtyText(n.qty)} ${n.unit}", style = Type.secondary.copy(fontSize = 14.sp))
-                }
+                Text(n.text, style = Type.row, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text("${qtyText(n.qty)} ${n.unit}", style = Type.secondary.copy(fontSize = 14.sp))
                 val restr = n.restrictions.split('|').filter { it.isNotBlank() }
                 val pinned = (price as? NeedPriceResult.Priced)?.value?.takeIf { n.pinnedProductId != null }
-                if (restr.isNotEmpty() || n.pinnedProductId != null || n.typeId == null) {
+                // El producto fijado solo se nombra si no es lo mismo que ya pone el articulo.
+                val showPinned = n.pinnedProductId != null && pinned?.product?.name?.substringBefore(" · ")?.let { com.marcmayol.faltis.core.Text.normalize(it) != com.marcmayol.faltis.core.Text.normalize(n.text) } != false
+                if (restr.isNotEmpty() || showPinned || n.typeId == null) {
                     Row(Modifier.padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         restr.forEach { Chip(it) }
-                        if (n.pinnedProductId != null) {
+                        if (showPinned) {
                             Icon(Icons.Filled.PushPin, "Producto fijado", tint = Faltis.Brand, modifier = Modifier.size(13.dp))
                             Text(pinned?.product?.name ?: "fijado", style = Type.secondary.copy(fontSize = 12.sp), maxLines = 1)
                         }
@@ -452,22 +457,34 @@ private fun NeedSheet(n: NeedEntity, vm: AppViewModel, onDismiss: () -> Unit, on
     var typeId by remember { mutableStateOf(n.typeId) }
     var restrictions by remember { mutableStateOf(n.restrictions.split('|').filter { it.isNotBlank() }.toSet()) }
     var pinned by remember { mutableStateOf(n.pinnedProductId) }
+    var chain by remember { mutableStateOf(n.chainId) }
     var typeQuery by remember { mutableStateOf("") }
     val book by vm.priceBook.collectAsState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Faltis.Surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Desplazable: con todo lo que lleva, «Guardar» se quedaba fuera de la pantalla.
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             OutlinedTextField(text, { text = it }, label = { Text("Qué necesitas") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            // Arriba del todo: mover a otra lista de un toque: las de tus supers (aunque aun no existan) y las generales.
+            // ¿Donde lo compras? Con un producto fijado manda su super; elegir otro lo suelta.
             val lists by vm.lists.collectAsState()
             val stores by vm.stores.collectAsState()
-            val storeTargets = stores.filter { s -> lists.none { it.storeId == s.id && it.id == n.listId } }
-            val listTargets = lists.filter { l -> l.storeId == null && l.id != n.listId }
-            if (storeTargets.isNotEmpty() || listTargets.isNotEmpty()) {
+            val pinnedChain = pinned?.let { book?.productsById?.get(it)?.chainId }
+            val shownChain = pinnedChain ?: chain
+            SectionLabel("¿Dónde lo compras?")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SelectPill("En cualquiera", shownChain == null) { chain = null; pinned = null }
+                (stores.map { it.chainId } + listOfNotNull(shownChain)).distinct().forEach { c ->
+                    SelectPill(com.marcmayol.faltis.core.Chains.byId(c).name, shownChain == c) {
+                        if (c != pinnedChain) pinned = null
+                        chain = c
+                    }
+                }
+            }
+            val listTargets = lists.filter { it.id != n.listId }
+            if (listTargets.isNotEmpty()) {
                 SectionLabel("Mover a otra lista")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    storeTargets.forEach { s -> SelectPill(s.name, false) { vm.moveNeed(n, storeId = s.id); onDismiss() } }
-                    listTargets.forEach { l -> SelectPill(l.name, false) { vm.moveNeed(n, listId = l.id); onDismiss() } }
+                    listTargets.forEach { l -> SelectPill(l.name, false) { vm.moveNeed(n, l.id); onDismiss() } }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -507,7 +524,7 @@ private fun NeedSheet(n: NeedEntity, vm: AppViewModel, onDismiss: () -> Unit, on
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SecondaryButton("Eliminar", { vm.deleteNeed(n); onDismiss() }, Modifier.weight(1f))
                 PrimaryButton("Guardar", {
-                    vm.saveNeed(n.copy(text = text.ifBlank { n.text }, qty = qty, unit = unit, typeId = typeId, restrictions = restrictions.joinToString("|"), pinnedProductId = pinned))
+                    vm.saveNeed(n.copy(text = text.ifBlank { n.text }, qty = qty, unit = unit, typeId = typeId, restrictions = restrictions.joinToString("|"), pinnedProductId = pinned, chainId = pinned?.let { book?.productsById?.get(it)?.chainId } ?: chain))
                     onDismiss()
                 }, Modifier.weight(1f))
             }
@@ -526,52 +543,6 @@ fun SelectPill(text: String, selected: Boolean, icon: androidx.compose.ui.graphi
     ) {
         icon?.let { Icon(it, null, tint = if (selected) Faltis.Brand else Faltis.Ink2, modifier = Modifier.size(18.dp)) }
         Text(text, style = Type.row.copy(fontSize = 14.sp, fontWeight = if (selected) FontWeight.W700 else FontWeight.W500))
-    }
-}
-
-/** «¿A qué lista lo añado?»: la de cada super (se crea al elegirla si no existe) o la general que se ve. */
-@Composable
-private fun AddWhereDialog(
-    text: String,
-    stores: List<StoreEntity>,
-    lists: List<ListEntity>,
-    current: ListEntity?,
-    onStore: (Long) -> Unit,
-    onHere: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Faltis.Surface,
-        title = { Text("¿A qué lista lo añado?", style = Type.title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("«$text»", style = Type.secondary, maxLines = 2)
-                Spacer(Modifier.height(6.dp))
-                stores.forEach { st ->
-                    val list = lists.firstOrNull { it.storeId == st.id }
-                    WhereRow(list?.name ?: st.name, if (list == null) "Lista nueva" else null, { ChainChip(st.chainId, 30.dp) }) { onStore(st.id); onDismiss() }
-                }
-                if (current != null) WhereRow(current.name, "Lista general, sin súper", null) { onHere(); onDismiss() }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onDismiss) { Text("Cancelar") } },
-    )
-}
-
-@Composable
-private fun WhereRow(title: String, subtitle: String?, icon: (@Composable () -> Unit)?, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Faltis.Elevated).clickable(onClick = onClick)
-            .heightIn(min = 52.dp).padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        icon?.invoke()
-        Column(Modifier.weight(1f)) {
-            Text(title, style = Type.row, maxLines = 1)
-            subtitle?.let { Text(it, style = Type.secondary.copy(fontSize = 12.sp)) }
-        }
     }
 }
 
@@ -613,5 +584,21 @@ fun WebPriceNotice(modifier: Modifier = Modifier) {
     ) {
         Icon(Icons.Filled.Info, null, tint = Faltis.Warn, modifier = Modifier.size(18.dp).padding(top = 1.dp))
         Text(com.marcmayol.faltis.core.WebCatalog.DISCLAIMER, style = Type.secondary.copy(fontSize = 12.sp, lineHeight = 16.sp))
+    }
+}
+
+/** Super de un articulo: el de su producto fijado o el elegido; null, en cualquiera. */
+fun chainOfNeed(n: NeedEntity, book: com.marcmayol.faltis.core.PriceBook?): String? =
+    n.pinnedProductId?.let { book?.productsById?.get(it)?.chainId } ?: n.chainId
+
+@Composable
+fun SuperHeader(chainId: String?, count: Int, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (chainId != null) ChainChip(chainId, 28.dp)
+        else Box(Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).background(Faltis.Elevated), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.ShoppingCart, null, tint = Faltis.Ink2, modifier = Modifier.size(16.dp))
+        }
+        Text(chainId?.let { com.marcmayol.faltis.core.Chains.byId(it).name } ?: "En cualquier súper", style = Type.title.copy(fontSize = 17.sp), modifier = Modifier.weight(1f))
+        Text("$count", style = Type.secondary)
     }
 }

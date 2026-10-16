@@ -48,6 +48,8 @@ import kotlin.math.roundToLong
 
 /** Productos web que se guardan por necesidad y cadena: los que mejor casan con el tipo. */
 private const val MAX_WEB_PER_NEED = 6
+/** Productos que trae cada busqueda del catalogo. */
+private const val CATALOG_HITS = 40
 
 private val Context.dataStore by preferencesDataStore("faltis")
 
@@ -99,7 +101,7 @@ class Repository(private val context: Context) {
     val textParser = FreeTextParser(taxonomy)
     val ticketParser = TicketParser(taxonomy)
 
-    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3, FaltisDb.MIGRATION_3_4, FaltisDb.MIGRATION_4_5).build()
+    private val db = Room.databaseBuilder(context, FaltisDb::class.java, "faltis.db").addMigrations(FaltisDb.MIGRATION_1_2, FaltisDb.MIGRATION_2_3, FaltisDb.MIGRATION_3_4, FaltisDb.MIGRATION_4_5, FaltisDb.MIGRATION_5_6).build()
     val dao = db.dao()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -243,13 +245,8 @@ class Repository(private val context: Context) {
         return id
     }
 
-    /** La lista de ese super; si no tiene, la crea con su nombre (sin cambiar la lista activa). */
-    suspend fun storeList(store: StoreEntity): ListEntity =
-        dao.listsNow().firstOrNull { it.storeId == store.id }
-            ?: ListEntity(name = store.name, createdAtMillis = now(), storeId = store.id).let { it.copy(id = dao.insertList(it)) }
-
     /** F-02.3-4 · Añade desde texto libre fusionando con las abiertas compatibles. Devuelve avisos de fusion. */
-    suspend fun addFromText(listId: Long, input: String): List<String> {
+    suspend fun addFromText(listId: Long, input: String, chainId: String? = null): List<String> {
         val parsed = textParser.parse(input)
         val notes = mutableListOf<String>()
         var pos = dao.maxPosition(listId)
@@ -259,7 +256,7 @@ class Repository(private val context: Context) {
             val match = open.firstOrNull { n ->
                 val sameKey = if (p.typeId != null) n.typeId == p.typeId else Text.normalize(n.text) == Text.normalize(p.text)
                 val nUnit = QtyUnit.fromCode(n.unit) ?: QtyUnit.UD
-                sameKey && n.restrictions == restr && n.pinnedProductId == null && nUnit.dimension == p.unit.dimension
+                sameKey && n.restrictions == restr && n.pinnedProductId == null && n.chainId == chainId && nUnit.dimension == p.unit.dimension
             }
             if (match != null) {
                 val nUnit = QtyUnit.fromCode(match.unit) ?: QtyUnit.UD
@@ -271,7 +268,7 @@ class Repository(private val context: Context) {
                 dao.insertNeed(
                     NeedEntity(
                         listId = listId, text = p.text, typeId = p.typeId, qty = p.qty, unit = p.unit.code,
-                        restrictions = restr, position = ++pos, addedAtMillis = now(), updatedAtMillis = now(),
+                        restrictions = restr, position = ++pos, addedAtMillis = now(), updatedAtMillis = now(), chainId = chainId,
                     ),
                 )
             }
@@ -279,14 +276,31 @@ class Repository(private val context: Context) {
         return notes
     }
 
-    /** Añade una necesidad con el producto ya fijado (desde la ficha). */
+    /** Añade una necesidad con el producto ya fijado (desde la ficha); si ya estaba, suma uno. */
     suspend fun addPinned(listId: Long, name: String, typeId: String?, productId: Long) {
-        dao.insertNeed(
-            NeedEntity(
-                listId = listId, text = name, typeId = typeId, pinnedProductId = productId,
-                position = dao.maxPosition(listId) + 1, addedAtMillis = now(), updatedAtMillis = now(),
-            ),
-        )
+        val open = dao.openNeedsNow(listId).firstOrNull { it.pinnedProductId == productId }
+        setPinnedQty(listId, productId, (open?.qty ?: 0.0) + 1)
+    }
+
+    /**
+     * Catalogo: deja [qty] unidades del producto en la lista (0 lo quita). El articulo lleva el
+     * producto fijado y, con el, su super.
+     */
+    suspend fun setPinnedQty(listId: Long, productId: Long, qty: Double) {
+        val open = dao.openNeedsNow(listId).firstOrNull { it.pinnedProductId == productId }
+        when {
+            qty <= 0 -> open?.let { dao.deleteNeed(it.id) }
+            open != null -> dao.updateNeed(open.copy(qty = qty, unit = "ud", updatedAtMillis = now()))
+            else -> {
+                val p = dao.product(productId) ?: return
+                dao.insertNeed(
+                    NeedEntity(
+                        listId = listId, text = p.name.substringBefore(" · "), typeId = p.typeId, qty = qty, pinnedProductId = productId,
+                        position = dao.maxPosition(listId) + 1, addedAtMillis = now(), updatedAtMillis = now(), chainId = p.chainId,
+                    ),
+                )
+            }
+        }
     }
 
     suspend fun updateNeed(n: NeedEntity) = dao.updateNeed(n.copy(updatedAtMillis = now()))
@@ -590,6 +604,21 @@ class Repository(private val context: Context) {
         return fetchWeb(s, WebCatalog.chains.toList(), listOf(query to type), force)
     }
 
+    /**
+     * Catalogo de un super: busca [query] en su web y guarda lo que encuentre, aunque no sea de
+     * ningun tipo conocido. Devuelve los ids en el orden de la web; null si los precios web estan
+     * apagados o la cadena no tiene web, y vacio si la web falla.
+     */
+    suspend fun catalogSearch(chainId: String, query: String): List<Long>? {
+        val s = settings.first()
+        if (!s.webPrices || !WebCatalog.isPostalCode(s.postalCode) || chainId !in WebCatalog.chains) return null
+        return runCatching {
+            val zone = s.webZones[chainId] ?: web.zone(chainId, s.postalCode)?.also { saveZone(chainId, it) } ?: return@runCatching emptyList()
+            val found = web.search(chainId, query, zone, hits = CATALOG_HITS)
+            db.withTransaction { found.map { p -> saveWebPrice(p, taxonomy.matchProductName(p.name)?.type?.id) } }.distinct()
+        }.getOrElse { emptyList() }
+    }
+
     /** Busca cada texto en la web de cada cadena (todas a la vez) y guarda lo que sea de su tipo. */
     private suspend fun fetchWeb(s: Settings, chains: List<String>, items: List<Pair<String, com.marcmayol.faltis.core.ProductType>>, force: Boolean): Int {
         if (chains.isEmpty() || items.isEmpty()) return 0
@@ -638,7 +667,7 @@ class Repository(private val context: Context) {
         }
     }
 
-    private suspend fun saveWebPrice(p: WebProduct, typeId: String) {
+    private suspend fun saveWebPrice(p: WebProduct, typeId: String?): Long {
         val norm = Text.normalize(p.name)
         val words = ProductMatcher.nameWords(ProductMatcher.plain(p.name))
         val tags = listOfNotNull(
@@ -648,7 +677,7 @@ class Repository(private val context: Context) {
         val entity = ProductEntity(
             chainId = p.chainId, name = p.name, nameNorm = norm, brand = p.brand, typeId = typeId, tags = tags,
             isPrivateLabel = ProductMatcher.isStoreBrand(p.brand) || ProductMatcher.owners(words).isNotEmpty(),
-            netQty = p.netQty, netUnit = p.netUnit?.code, variant = taxonomy.byId(typeId)?.name,
+            netQty = p.netQty, netUnit = p.netUnit?.code, variant = typeId?.let { taxonomy.byId(it)?.name },
         )
         val existing = dao.webProduct(p.chainId, norm)
         val id = if (existing == null) dao.insertProduct(entity.copy(imageUrl = p.imageUrl))
@@ -660,6 +689,7 @@ class Repository(private val context: Context) {
                 kind = (if (p.offer) PriceKind.PROMO else PriceKind.REGULAR).name, source = PriceSource.WEB.name, observedAtMillis = now(),
             ),
         )
+        return id
     }
 
     // ── Fichas de Open Food Facts ──

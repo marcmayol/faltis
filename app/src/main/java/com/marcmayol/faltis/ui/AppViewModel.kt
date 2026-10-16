@@ -90,6 +90,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val purchases = repo.dao.purchases().stateIn(scope, SharingStarted.Eagerly, emptyList())
     val sampleCount = repo.dao.sampleCount().stateIn(scope, SharingStarted.Eagerly, 0)
 
+    /** Articulos abiertos de todas las listas: el inicio enseña de que supers son. */
+    val allOpenNeeds: StateFlow<List<NeedEntity>> = repo.dao.allOpenNeeds().stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     val activeNeeds: StateFlow<List<NeedEntity>> = repo.settings.map { it.activeListId }
         .flatMapLatest { id -> if (id == 0L) flowOf(emptyList()) else repo.dao.openNeeds(id) }
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -97,8 +100,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Todo lo que necesita la Lista y Comparar, recalculado cuando cambia algo. */
     val listUi: StateFlow<ListUi> = combine(settings, lists, activeNeeds, stores, priceBook) { s, ls, needs, st, book ->
         val list = ls.firstOrNull { it.id == s?.activeListId }
-        // La lista de un super se estima siempre en ese super.
-        val store = st.firstOrNull { it.id == list?.storeId } ?: st.firstOrNull { it.id == s?.selectedStoreId } ?: st.firstOrNull()
+        val store = st.firstOrNull { it.id == s?.selectedStoreId } ?: st.firstOrNull()
         if (book == null || s == null) return@combine ListUi(list, needs, store, null, null)
         val refs = with(repo) { needs.map { it.toRef() } }
         val storeRefs = with(repo) { st.map { it.toRef() } }
@@ -137,19 +139,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── Lista ──
-    fun addText(text: String) = run {
+    /** Texto libre a la lista activa; con [chainId], marcado para comprarlo en ese super. */
+    fun addText(text: String, chainId: String? = null) = run {
         val listId = repo.ensureActiveList()
-        val notes = repo.addFromText(listId, text)
+        val notes = repo.addFromText(listId, text, chainId)
         notes.forEach { say(it) }
-    }
-
-    /** Añade a la lista de ese super (la crea si no existe) y lo dice, porque no es la que se ve. */
-    fun addTextToStore(storeId: Long, text: String) = run {
-        val store = stores.value.firstOrNull { it.id == storeId } ?: return@run
-        val list = repo.storeList(store)
-        val notes = repo.addFromText(list.id, text)
-        notes.forEach { say(it) }
-        if (list.id != settings.value?.activeListId) say("Añadido a «${list.name}»", "Ver lista") { repo.setActiveList(list.id) }
     }
 
     fun deleteNeed(n: NeedEntity) = run {
@@ -159,15 +153,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveNeed(n: NeedEntity) = run { repo.updateNeed(n) }
 
-    /** A una lista que ya existe ([listId]) o a la de un super ([storeId]), que se crea si hace falta. */
-    fun moveNeed(n: NeedEntity, listId: Long? = null, storeId: Long? = null) = run {
-        val target = listId?.let { id -> lists.value.firstOrNull { it.id == id } }
-            ?: storeId?.let { id -> stores.value.firstOrNull { it.id == id } }?.let { repo.storeList(it) }
-            ?: return@run
+    /** Pasa el articulo a otra lista. */
+    fun moveNeed(n: NeedEntity, listId: Long) = run {
+        val target = lists.value.firstOrNull { it.id == listId } ?: return@run
         if (target.id == n.listId) return@run
         repo.moveNeed(n, target.id)
         say("«${n.text}» movido a «${target.name}»", "Ver lista") { repo.setActiveList(target.id) }
     }
+
+    /** Catalogo: deja [qty] unidades del producto en la lista activa (0 lo quita). */
+    fun setInList(productId: Long, qty: Double) = run { repo.setPinnedQty(repo.ensureActiveList(), productId, qty) }
+
+    /** Super que se esta mirando en Productos; null hasta elegir (entonces, la primera tienda). */
+    val catalogChain = MutableStateFlow<String?>(null)
+
     fun selectStore(id: Long) = run { repo.setSelectedStore(id) }
     fun selectList(id: Long) = run { repo.setActiveList(id) }
     fun newList(name: String) = run { repo.createList(name) }
@@ -180,12 +179,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         repo.deleteList(l.id)
         say("Lista «${l.name}» borrada")
     }
-    /** Abre una lista; la de un super la crea si aun no existe. */
-    fun openStoreList(store: com.marcmayol.faltis.data.StoreEntity, then: () -> Unit) = run {
-        repo.setActiveList(repo.storeList(store).id)
-        then()
-    }
-
     fun toggleCart(n: NeedEntity) = run { repo.toggleCart(n, n.listId) }
 
     fun finishWithoutTicket(storeId: Long, onDone: () -> Unit) = run {

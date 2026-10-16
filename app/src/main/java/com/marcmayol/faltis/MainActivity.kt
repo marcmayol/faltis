@@ -28,7 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -58,6 +58,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.marcmayol.faltis.ui.AppViewModel
+import com.marcmayol.faltis.ui.CatalogScreen
 import com.marcmayol.faltis.ui.CompareScreen
 import com.marcmayol.faltis.ui.ListScreen
 import com.marcmayol.faltis.ui.ListsHomeScreen
@@ -129,7 +130,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 
 private val tabs = listOf(
     Tab("list", "Listas", Icons.AutoMirrored.Filled.List),
-    Tab("prices", "Precios", Icons.Filled.LocalOffer),
+    Tab("products", "Productos", Icons.Filled.GridView),
     Tab("spending", "Gastos", Icons.Filled.BarChart),
     Tab("settings", "Ajustes", Icons.Filled.Tune),
 )
@@ -189,16 +190,16 @@ private fun MainNav(vm: AppViewModel, nav: NavHostController, route: String?, pa
 
     NavHost(nav, startDestination = "list") {
         composable("list") {
-            ListsHomeScreen(vm, onOpen = { nav.navigate("listdetail") { launchSingleTop = true } }, onStores = { nav.goTab("settings") }, contentPadding = padding)
+            ListsHomeScreen(vm, onOpen = { nav.navigate("listdetail") { launchSingleTop = true } }, onCatalog = { nav.goTab("products") }, contentPadding = padding)
         }
         composable("listdetail") {
             ListScreen(
                 vm, onCompare = { nav.navigate("compare") }, onShop = { nav.navigate("shop") },
                 onTicket = { nav.navigate("ticket/0") }, onPickProduct = { nav.navigate("pick/$it") },
-                onStores = { nav.goTab("settings") }, contentPadding = padding, onBack = { nav.popBackStack() },
+                onStores = { nav.goTab("settings") }, onCatalog = { nav.goTab("products") }, contentPadding = padding, onBack = { nav.popBackStack() },
             )
         }
-        composable("prices") { PricesScreen(vm, onProduct = { nav.navigate("product/$it") }, onCompare = { nav.navigate("compare") }, contentPadding = padding) }
+        composable("products") { CatalogScreen(vm, onProduct = { nav.navigate("product/$it") }, onSettings = { nav.goTab("settings") }, contentPadding = padding) }
         composable("spending") { SpendingScreen(vm, onTicket = { nav.navigate("ticket/0") }, onPurchase = { nav.navigate("purchase/$it") }, contentPadding = padding) }
         composable("settings") { SettingsScreen(vm, padding) }
         composable("compare") { CompareScreen(vm, onBack = { nav.popBackStack() }, onTicket = { nav.navigate("ticket/0") }, onStores = { nav.goTab("settings") }, contentPadding = padding) }

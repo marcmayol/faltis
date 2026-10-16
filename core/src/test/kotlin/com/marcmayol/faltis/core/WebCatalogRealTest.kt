@@ -18,7 +18,8 @@ class WebCatalogRealTest {
         assumeTrue(files.isNotEmpty())
         for (f in files.sortedBy { it.name }) {
             val ps = WebCatalog.parse(f.nameWithoutExtension, f.readText())
-            println("== ${f.name}: ${ps.size} productos, ${ps.count { it.netUnit == null }} sin cantidad")
+            println("== ${f.name}: ${ps.size} productos, ${ps.count { it.netUnit == null }} sin cantidad, ${ps.count { it.imageUrl != null }} con foto")
+            ps.mapNotNull { it.imageUrl }.take(3).forEach { println("   foto $it") }
             ps.take(8).forEach { println("   ${it.priceCents}c ${it.netQty} ${it.netUnit?.code} ${if (it.offer) "OFERTA " else ""}| ${it.name} | ${it.brand}") }
             check(ps.isNotEmpty()) { "${f.name} no da productos" }
         }
