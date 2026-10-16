@@ -1,8 +1,8 @@
 {
-  "versionCode": 12,
-  "versionName": "0.7.1",
-  "url": "https://github.com/marcmayol/faltis/releases/download/v0.7.1/faltis-v0.7.1.apk",
-  "sha256": "ff16119b19e75bb7cbe8eb1cce1ef25168d3710aedbfdb20284e612fa67c225f",
-  "notas": "En el modo compra puedes cambiar la cantidad de cada artículo con los botones – y +, sin salir del pasillo.",
+  "versionCode": 13,
+  "versionName": "0.7.2",
+  "url": "https://github.com/marcmayol/faltis/releases/download/v0.7.2/faltis-v0.7.2.apk",
+  "sha256": "12f11dde7064074d2d8258bec46bed9f680f3391b300c1d4b150be3ae9f83020",
+  "notas": "Arreglos: el pie de pago de los tickets en catalán (A pagar, Targeta, Pagament) ya no se cuenta como productos. Nuevo botón «Hacer foto del ticket» para usar la cámara desde la app; la foto se lee en el móvil y se borra.",
   "check_horas": 24
 }
